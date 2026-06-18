@@ -1,11 +1,31 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { requireAdminUser } from "@/lib/supabase/api-auth"
+import { revalidatePath } from "next/cache"
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = createAdminClient()
+
+  // Fetch slug + category before deleting so we can revalidate
+  const { data: post } = await supabase
+    .from("posts")
+    .select("slug, category:categories(slug)")
+    .eq("id", id)
+    .single()
+
   const { error } = await supabase.from("posts").delete().eq("id", id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  revalidatePath("/")
+  if (post?.category) {
+    const catSlug = Array.isArray(post.category) ? post.category[0]?.slug : (post.category as any)?.slug
+    if (catSlug) {
+      revalidatePath(`/${catSlug}`)
+      if (post.slug) revalidatePath(`/${catSlug}/${post.slug}`)
+    }
+  }
+
   return NextResponse.json({ ok: true })
 }
 
@@ -13,12 +33,40 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params
   const body = await req.json()
   const supabase = createAdminClient()
+
+  // Enforce: only one featured post per category
+  if (body.featured === true && body.category_id) {
+    await supabase
+      .from("posts")
+      .update({ featured: false })
+      .eq("category_id", body.category_id)
+      .eq("featured", true)
+      .neq("id", id)
+  }
+
+  // Enforce: only one hero post site-wide
+  if (body.is_hero === true) {
+    await supabase
+      .from("posts")
+      .update({ is_hero: false })
+      .eq("is_hero", true)
+      .neq("id", id)
+  }
+
   const { data, error } = await supabase
     .from("posts")
     .update({ ...body, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .select()
+    .select("*, category:categories(slug)")
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  revalidatePath("/")
+  const catSlug = Array.isArray(data.category) ? data.category[0]?.slug : (data.category as any)?.slug
+  if (catSlug) {
+    revalidatePath(`/${catSlug}`)
+    revalidatePath(`/${catSlug}/${data.slug}`)
+  }
+
   return NextResponse.json(data)
 }

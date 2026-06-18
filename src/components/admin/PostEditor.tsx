@@ -2,21 +2,23 @@
 
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
-import Image from "@tiptap/extension-image"
 import Link from "@tiptap/extension-link"
 import Placeholder from "@tiptap/extension-placeholder"
+import { ResizableImageExtension } from "@/components/admin/ResizableImage"
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
   Bold, Italic, List, ListOrdered, Heading2, Heading3,
-  Link2, Image as ImageIcon, Quote, Code, Undo, Redo, Save, Eye
+  Link2, Image as ImageIcon, Quote, Code, Undo, Redo, Save, Eye, Upload, X
 } from "lucide-react"
 import NextLink from "next/link"
+import { MediaPickerModal } from "@/components/admin/MediaPickerModal"
 
 interface Category {
   id: string
   name: string
   color: string | null
+  featuredPostId?: string | null
 }
 
 interface PostData {
@@ -29,6 +31,7 @@ interface PostData {
   cover_image_alt: string
   status: "draft" | "published" | "scheduled" | "archived"
   featured: boolean
+  is_hero: boolean
   category_id: string
   published_at: string | null
   read_time: number
@@ -37,6 +40,7 @@ interface PostData {
 interface Props {
   categories: Category[]
   initial?: Partial<PostData>
+  currentHeroId?: string | null
 }
 
 function slugify(text: string) {
@@ -66,7 +70,7 @@ function ToolbarButton({
   )
 }
 
-export function PostEditor({ categories, initial }: Props) {
+export function PostEditor({ categories, initial, currentHeroId }: Props) {
   const router = useRouter()
   const isNew = !initial?.id
 
@@ -77,6 +81,7 @@ export function PostEditor({ categories, initial }: Props) {
   const [coverAlt, setCoverAlt] = useState(initial?.cover_image_alt ?? "")
   const [status, setStatus] = useState<PostData["status"]>(initial?.status ?? "draft")
   const [featured, setFeatured] = useState(initial?.featured ?? false)
+  const [isHero, setIsHero] = useState(initial?.is_hero ?? false)
   const [categoryId, setCategoryId] = useState(initial?.category_id ?? "")
   const [publishedAt, setPublishedAt] = useState(
     initial?.published_at ? initial.published_at.slice(0, 16) : ""
@@ -84,11 +89,13 @@ export function PostEditor({ categories, initial }: Props) {
   const [readTime, setReadTime] = useState(initial?.read_time ?? 3)
   const [saving, setSaving] = useState(false)
   const [slugManual, setSlugManual] = useState(!!initial?.slug)
+  const [mediaPicker, setMediaPicker] = useState(false)
+  const [editorImagePicker, setEditorImagePicker] = useState(false)
 
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Image.configure({ inline: false }),
+      ResizableImageExtension,
       Link.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder: "Write your article here…" }),
     ],
@@ -116,10 +123,8 @@ export function PostEditor({ categories, initial }: Props) {
   }, [editor])
 
   const addImage = useCallback(() => {
-    const url = prompt("Image URL:")
-    if (!url || !editor) return
-    editor.chain().focus().setImage({ src: url }).run()
-  }, [editor])
+    setEditorImagePicker(true)
+  }, [])
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -135,6 +140,7 @@ export function PostEditor({ categories, initial }: Props) {
       cover_image_alt: coverAlt || null,
       status,
       featured,
+      is_hero: isHero,
       category_id: categoryId || null,
       published_at: status === "published" && !publishedAt
         ? new Date().toISOString()
@@ -165,6 +171,19 @@ export function PostEditor({ categories, initial }: Props) {
   if (!editor) return null
 
   return (
+    <>
+    <MediaPickerModal
+      open={mediaPicker}
+      onClose={() => setMediaPicker(false)}
+      onSelect={(url) => setCoverUrl(url)}
+    />
+    <MediaPickerModal
+      open={editorImagePicker}
+      onClose={() => setEditorImagePicker(false)}
+      onSelect={(url) => {
+        editor?.chain().focus().setImage({ src: url }).run()
+      }}
+    />
     <form onSubmit={handleSave}>
       {/* Top bar */}
       <div className="flex items-center justify-between mb-6 gap-4">
@@ -176,7 +195,7 @@ export function PostEditor({ categories, initial }: Props) {
           >
             ← Posts
           </NextLink>
-          <h1 className="text-xl font-bold text-white">{isNew ? "New Post" : "Edit Post"}</h1>
+          <h1 className="text-xl font-bold" style={{ color: "var(--fg)" }}>{isNew ? "New Post" : "Edit Post"}</h1>
         </div>
         <div className="flex items-center gap-2">
           {!isNew && initial?.slug && (
@@ -331,15 +350,45 @@ export function PostEditor({ categories, initial }: Props) {
               </div>
             )}
 
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={featured}
-                onChange={(e) => setFeatured(e.target.checked)}
-                className="rounded"
-              />
-              <span className="text-sm" style={{ color: "var(--fg-2)" }}>Featured post</span>
-            </label>
+            {/* Featured */}
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={featured}
+                  onChange={(e) => setFeatured(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-sm" style={{ color: "var(--fg-2)" }}>Featured in category</span>
+              </label>
+              {featured && categoryId && (() => {
+                const cat = categories.find((c) => c.id === categoryId)
+                const conflict = cat?.featuredPostId && cat.featuredPostId !== initial?.id
+                return conflict ? (
+                  <p className="mt-1 ml-6 text-[11px] text-amber-600">
+                    Saving will replace the current featured post for {cat?.name}.
+                  </p>
+                ) : null
+              })()}
+            </div>
+
+            {/* Hero */}
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isHero}
+                  onChange={(e) => setIsHero(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-sm" style={{ color: "var(--fg-2)" }}>Homepage hero</span>
+              </label>
+              {isHero && currentHeroId && currentHeroId !== initial?.id && (
+                <p className="mt-1 ml-6 text-[11px] text-violet-600">
+                  Saving will replace the current hero post.
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Category */}
@@ -373,21 +422,42 @@ export function PostEditor({ categories, initial }: Props) {
             className="rounded-xl p-4 space-y-3"
             style={{ backgroundColor: "var(--bg-2)", border: "1px solid var(--border)" }}
           >
-            <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--fg-3)" }}>Cover Image</h3>
-            {coverUrl && (
-              <img src={coverUrl} alt={coverAlt} className="w-full aspect-video object-cover rounded-lg" />
-            )}
-            <div className="space-y-1">
-              <label className="text-xs" style={{ color: "var(--fg-2)" }}>URL</label>
-              <input
-                type="url"
-                value={coverUrl}
-                onChange={(e) => setCoverUrl(e.target.value)}
-                placeholder="https://…"
-                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                style={{ backgroundColor: "var(--bg-3)", border: "1px solid var(--border)", color: "var(--fg)" }}
-              />
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--fg-3)" }}>Cover Image</h3>
+              <button
+                type="button"
+                onClick={() => setMediaPicker(true)}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors"
+                style={{ color: "var(--fg-2)", border: "1px solid var(--border)" }}
+              >
+                <Upload size={11} />
+                Choose
+              </button>
             </div>
+
+            {coverUrl ? (
+              <div className="relative group rounded-lg overflow-hidden">
+                <img src={coverUrl} alt={coverAlt} className="w-full aspect-video object-cover" />
+                <button
+                  type="button"
+                  onClick={() => { setCoverUrl(""); setCoverAlt("") }}
+                  className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMediaPicker(true)}
+                className="w-full aspect-video rounded-lg flex flex-col items-center justify-center gap-2 transition-colors"
+                style={{ border: "2px dashed var(--border)", color: "var(--fg-3)" }}
+              >
+                <ImageIcon size={20} />
+                <span className="text-xs">Click to choose</span>
+              </button>
+            )}
+
             <div className="space-y-1">
               <label className="text-xs" style={{ color: "var(--fg-2)" }}>Alt text</label>
               <input
@@ -395,6 +465,18 @@ export function PostEditor({ categories, initial }: Props) {
                 value={coverAlt}
                 onChange={(e) => setCoverAlt(e.target.value)}
                 placeholder="Describe the image"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                style={{ backgroundColor: "var(--bg-3)", border: "1px solid var(--border)", color: "var(--fg)" }}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs" style={{ color: "var(--fg-2)" }}>Or paste URL</label>
+              <input
+                type="url"
+                value={coverUrl}
+                onChange={(e) => setCoverUrl(e.target.value)}
+                placeholder="https://…"
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none"
                 style={{ backgroundColor: "var(--bg-3)", border: "1px solid var(--border)", color: "var(--fg)" }}
               />
@@ -423,5 +505,6 @@ export function PostEditor({ categories, initial }: Props) {
         </div>
       </div>
     </form>
+    </>
   )
 }

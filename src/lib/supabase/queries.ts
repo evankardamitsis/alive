@@ -50,7 +50,17 @@ export async function getCategorySpotlights(perCategory = 4) {
   const categories = await getAllCategories()
   const results = await Promise.all(
     categories.map(async (cat) => {
-      const posts = await getPublishedPosts({ categorySlug: cat.slug, limit: perCategory })
+      const [featuredPost, recent] = await Promise.all([
+        getCategoryFeaturedPost(cat.slug),
+        getPublishedPosts({ categorySlug: cat.slug, limit: perCategory + 1 }),
+      ])
+      let posts: PostWithRelations[]
+      if (featuredPost) {
+        const rest = recent.filter((p) => p.id !== featuredPost.id).slice(0, perCategory - 1)
+        posts = [featuredPost, ...rest]
+      } else {
+        posts = recent.slice(0, perCategory)
+      }
       return { category: cat, posts }
     })
   )
@@ -100,6 +110,42 @@ export async function getAllCategories(): Promise<Category[]> {
 
 export async function getFeaturedPosts(limit = 5) {
   return getPublishedPosts({ featured: true, limit })
+}
+
+export async function getHeroPost(): Promise<PostWithRelations | null> {
+  const supabase = createPublicClient()
+  const { data } = await supabase
+    .from("posts")
+    .select(`*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`)
+    .eq("status", "published")
+    .eq("is_hero", true)
+    .limit(1)
+    .maybeSingle()
+  if (!data) return null
+  const post = data as PostWithRelations
+  return post.category && post.author ? post : null
+}
+
+export async function getCategoryFeaturedPost(categorySlug: string): Promise<PostWithRelations | null> {
+  const supabase = createPublicClient()
+  const { data: category } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("slug", categorySlug)
+    .maybeSingle()
+  if (!category?.id) return null
+
+  const { data } = await supabase
+    .from("posts")
+    .select(`*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`)
+    .eq("status", "published")
+    .eq("category_id", category.id)
+    .eq("featured", true)
+    .limit(1)
+    .maybeSingle()
+  if (!data) return null
+  const post = data as PostWithRelations
+  return post.category && post.author ? post : null
 }
 
 export async function getAdjacentPosts(post: PostWithRelations) {

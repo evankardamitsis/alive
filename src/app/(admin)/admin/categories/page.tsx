@@ -12,7 +12,7 @@ export default async function CategoriesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white mb-8">Categories</h1>
+      <h1 className="text-2xl font-bold mb-8" style={{ color: "var(--fg)" }}>Categories</h1>
       <CategoryManager initial={categories ?? []} />
     </div>
   )

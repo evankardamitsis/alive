@@ -1,9 +1,7 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
-import { getPublishedPosts, getAllCategories } from "@/lib/supabase/queries"
+import { getPublishedPosts, getAllCategories, getCategoryFeaturedPost } from "@/lib/supabase/queries"
 import { ArticleCard } from "@/components/article/ArticleCard"
-
-export const revalidate = 60
 
 interface Props {
   params: Promise<{ category: string }>
@@ -35,8 +33,14 @@ export default async function CategoryPage({ params }: Props) {
   const cat = categories.find((c) => c.slug === category)
   if (!cat) notFound()
 
-  const posts = await getPublishedPosts({ categorySlug: category, limit: 25 })
-  const [featured, ...rest] = posts
+  const [featuredPost, recent] = await Promise.all([
+    getCategoryFeaturedPost(category),
+    getPublishedPosts({ categorySlug: category, limit: 26 }),
+  ])
+
+  const featured = featuredPost ?? recent[0] ?? null
+  const rest = recent.filter((p) => p.id !== featured?.id)
+  const posts = featured ? [featured, ...rest] : rest
 
   return (
     <div>

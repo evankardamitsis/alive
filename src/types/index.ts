@@ -39,6 +39,7 @@ export interface Post {
   cover_image_alt: string | null
   status: PostStatus
   featured: boolean
+  is_hero: boolean
   author_id: string
   category_id: string
   published_at: string | null

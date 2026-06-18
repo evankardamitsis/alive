@@ -4,22 +4,22 @@ import { requireAdminUser } from "@/lib/supabase/api-auth"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const { name, slug, color, description } = await req.json()
+  const { role } = await req.json()
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("categories")
-    .update({ name, slug, color, description })
-    .eq("id", id)
-    .select()
-    .single()
+  const { error } = await supabase.auth.admin.updateUserById(id, {
+    app_metadata: { role },
+  })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  return NextResponse.json({ ok: true })
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = createAdminClient()
-  const { error } = await supabase.from("categories").delete().eq("id", id)
+  // Remove role instead of deleting the account
+  const { error } = await supabase.auth.admin.updateUserById(id, {
+    app_metadata: { role: null },
+  })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

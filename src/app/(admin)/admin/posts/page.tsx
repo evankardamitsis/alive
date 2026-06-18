@@ -1,29 +1,51 @@
 import Link from "next/link"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { formatDate } from "@/lib/utils"
-import { Plus, Pencil } from "lucide-react"
-import { DeletePostButton } from "@/components/admin/DeletePostButton"
+import { Plus } from "lucide-react"
+import { PostsTable } from "@/components/admin/PostsTable"
 
 export const revalidate = 0
 
-const STATUS_STYLES: Record<string, string> = {
-  published: "bg-emerald-500/15 text-emerald-600",
-  draft:     "bg-neutral-500/15 text-neutral-500",
-  scheduled: "bg-amber-500/15 text-amber-600",
-  archived:  "bg-red-500/15 text-red-500",
-}
+const PAGE_SIZE = 50
 
-export default async function PostsPage() {
+export default async function PostsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string }>
+}) {
+  const { page: pageParam, q } = await searchParams
+  const query = q?.trim() ?? ""
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1)
+
   const supabase = createAdminClient()
-  const { data: posts } = await supabase
-    .from("posts")
-    .select("id, title, slug, status, featured, published_at, category:categories(name, color)")
-    .order("updated_at", { ascending: false })
-    .limit(100)
+
+  const [postsResult, { data: featuredPosts }, { data: heroPosts }] = await Promise.all([
+    query
+      ? supabase
+          .from("posts")
+          .select("id, title, slug, status, featured, is_hero, published_at, updated_at, category_id, category:categories(name, color)", { count: "exact" })
+          .or(`title.ilike.%${query}%,slug.ilike.%${query}%`)
+          .order("updated_at", { ascending: false })
+          .limit(500)
+      : supabase
+          .from("posts")
+          .select("id, title, slug, status, featured, is_hero, published_at, updated_at, category_id, category:categories(name, color)", { count: "exact" })
+          .order("updated_at", { ascending: false })
+          .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1),
+    supabase.from("posts").select("id, category_id").eq("featured", true),
+    supabase.from("posts").select("id").eq("is_hero", true).limit(1),
+  ])
+
+  const { data: posts, count } = postsResult
+  const totalPages = query ? 1 : Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE))
+
+  const featuredMap: Record<string, string> = {}
+  for (const p of featuredPosts ?? []) {
+    if (p.category_id) featuredMap[p.category_id] = p.id
+  }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold" style={{ color: "var(--fg)" }}>Posts</h1>
         <Link
           href="/admin/posts/new"
@@ -33,80 +55,15 @@ export default async function PostsPage() {
           New Post
         </Link>
       </div>
-
-      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-        <table className="w-full text-sm">
-          <thead>
-            <tr style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--bg-2)" }}>
-              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--fg-3)" }}>Title</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden md:table-cell" style={{ color: "var(--fg-3)" }}>Category</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--fg-3)" }}>Status</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: "var(--fg-3)" }}>Date</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--fg-3)" }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(posts ?? []).map((post: any) => (
-              <tr
-                key={post.id}
-                className="transition-colors"
-                style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--bg)" }}
-              >
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium line-clamp-1" style={{ color: "var(--fg)" }}>{post.title}</span>
-                    {post.featured && (
-                      <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-600">
-                        Featured
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs line-clamp-1" style={{ color: "var(--fg-3)" }}>{post.slug}</span>
-                </td>
-                <td className="px-4 py-3.5 hidden md:table-cell">
-                  {post.category && (
-                    <span
-                      className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-black"
-                      style={{ backgroundColor: post.category.color ?? "#e63946" }}
-                    >
-                      {post.category.name}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3.5">
-                  <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${STATUS_STYLES[post.status] ?? ""}`}>
-                    {post.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3.5 text-xs hidden lg:table-cell" style={{ color: "var(--fg-3)" }}>
-                  {post.published_at ? formatDate(post.published_at) : "—"}
-                </td>
-                <td className="px-4 py-3.5">
-                  <div className="flex items-center justify-end gap-2">
-                    <Link
-                      href={`/admin/posts/${post.id}`}
-                      className="p-1.5 rounded-md transition-colors"
-                      style={{ color: "var(--fg-3)" }}
-                    >
-                      <Pencil size={13} />
-                    </Link>
-                    <DeletePostButton id={post.id} />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {(!posts || posts.length === 0) && (
-          <div className="py-16 text-center text-sm" style={{ color: "var(--fg-3)" }}>
-            No posts yet.{" "}
-            <Link href="/admin/posts/new" className="text-[#e63946] hover:underline">
-              Create your first post
-            </Link>
-          </div>
-        )}
-      </div>
+      <PostsTable
+        posts={(posts ?? []) as any}
+        page={page}
+        totalPages={totalPages}
+        total={count ?? 0}
+        featuredMap={featuredMap}
+        heroId={heroPosts?.[0]?.id ?? null}
+        searchQuery={query}
+      />
     </div>
   )
 }

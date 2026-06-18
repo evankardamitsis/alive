@@ -1,26 +1,25 @@
 import Image from "next/image"
 import Link from "next/link"
-import { getFeaturedPosts, getPublishedPosts, getCategorySpotlights } from "@/lib/supabase/queries"
+import { getHeroPost, getPublishedPosts, getCategorySpotlights } from "@/lib/supabase/queries"
 import { formatDate, cleanExcerpt } from "@/lib/utils"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { Logo } from "@/components/Logo"
 import type { PostWithRelations } from "@/types"
 
-export const revalidate = 60
-
 export default async function HomePage() {
-  const [featured, allLatest] = await Promise.all([
-    getFeaturedPosts(5),
+  const [heroPost, recentForSidebar] = await Promise.all([
+    getHeroPost(),
     getPublishedPosts({ limit: 5 }),
   ])
 
-  const heroPool = featured.length >= 5 ? featured : allLatest
-  const hero = heroPool[0] ?? null
-  const sidebarPosts = heroPool.slice(1, 5)
+  const hero = heroPost ?? recentForSidebar[0] ?? null
+  const sidebarPosts = recentForSidebar
+    .filter((p) => p.id !== hero?.id)
+    .slice(0, 4)
 
-  const heroIds = heroPool.slice(0, 5).map((p) => p.id)
+  const excludeIds = [hero?.id, ...sidebarPosts.map((p) => p.id)].filter(Boolean) as string[]
   const [latest, spotlights] = await Promise.all([
-    getPublishedPosts({ limit: 8, excludeIds: heroIds }),
+    getPublishedPosts({ limit: 8, excludeIds }),
     getCategorySpotlights(5),
   ])
 
