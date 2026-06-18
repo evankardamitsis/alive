@@ -21,10 +21,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // if (!session) redirect("/admin/login")
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0d0d0d]">
+    <div data-theme="light" className="flex h-screen overflow-hidden" style={{ backgroundColor: "var(--bg)" }}>
       {/* Sidebar */}
-      <aside className="flex w-56 shrink-0 flex-col border-r border-[#222] bg-[#111]">
-        <div className="flex h-14 items-center px-4 border-b border-[#222]">
+      <aside
+        className="flex w-56 shrink-0 flex-col"
+        style={{ borderRight: "1px solid var(--border)", backgroundColor: "var(--bg-2)" }}
+      >
+        <div className="flex h-14 items-center px-4" style={{ borderBottom: "1px solid var(--border)" }}>
           <Logo size="sm" showTag={false} />
           <span className="ml-2 rounded bg-[#e63946] px-1.5 py-0.5 text-[10px] font-bold text-white">ADMIN</span>
         </div>
@@ -34,7 +37,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link
               key={href}
               href={href}
-              className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-neutral-400 hover:bg-[#1a1a1a] hover:text-white transition-colors"
+              className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors"
+              style={{ color: "var(--fg-2)" }}
             >
               <Icon size={15} />
               {label}
@@ -42,8 +46,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           ))}
         </nav>
 
-        <div className="border-t border-[#222] p-2">
-          <button className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-neutral-500 hover:text-white transition-colors">
+        <div className="p-2" style={{ borderTop: "1px solid var(--border)" }}>
+          <button
+            className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors"
+            style={{ color: "var(--fg-3)" }}
+          >
             <LogOut size={15} />
             Sign out
           </button>

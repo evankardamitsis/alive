@@ -66,6 +66,20 @@ body {
 .article-content .wp-block-embed, .article-content .embed-responsive { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px; margin: 1.5rem 0; }
 .article-content .wp-block-embed iframe, .article-content .embed-responsive iframe { position: absolute; inset: 0; width: 100% !important; height: 100% !important; aspect-ratio: unset; margin: 0; border-radius: 0; }
 
+/* Tiptap editor prose */
+.prose-editor h2 { font-size: 1.4rem; font-weight: 700; margin: 1.75rem 0 0.6rem; color: var(--fg); }
+.prose-editor h3 { font-size: 1.1rem; font-weight: 700; margin: 1.5rem 0 0.5rem; color: var(--fg); }
+.prose-editor p { font-size: 0.95rem; line-height: 1.75; margin-bottom: 1rem; color: var(--fg-2); }
+.prose-editor ul, .prose-editor ol { padding-left: 1.25rem; margin-bottom: 1rem; color: var(--fg-2); }
+.prose-editor li { margin-bottom: 0.3rem; }
+.prose-editor blockquote { border-left: 3px solid #e63946; padding-left: 1rem; color: var(--fg-2); font-style: italic; margin: 1.25rem 0; }
+.prose-editor code { font-size: 0.85em; background: var(--bg-3); padding: 0.15em 0.35em; border-radius: 4px; }
+.prose-editor pre { background: var(--bg-3); padding: 1rem; border-radius: 8px; overflow-x: auto; margin-bottom: 1rem; }
+.prose-editor a { color: #e63946; text-decoration: underline; }
+.prose-editor img { max-width: 100%; border-radius: 8px; margin: 1rem 0; }
+.prose-editor .ProseMirror-focused { outline: none; }
+.prose-editor p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--fg-3); pointer-events: none; float: left; height: 0; }
+
 .article-card-featured { aspect-ratio: 2/3; }
 @media (min-width: 768px) {
   .article-card-featured { aspect-ratio: 16/7; }

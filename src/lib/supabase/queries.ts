@@ -161,7 +161,14 @@ export async function getAllTags() {
   return data as { id: string; name: string; slug: string }[]
 }
 
-export async function getAllPublishedSlugs() {
+type PublishedSlug = {
+  slug: string
+  published_at: string
+  updated_at: string
+  category: { slug: string }
+}
+
+export async function getAllPublishedSlugs(): Promise<PublishedSlug[]> {
   const supabase = createPublicClient()
   const { data, error } = await supabase
     .from("posts")
@@ -169,7 +176,19 @@ export async function getAllPublishedSlugs() {
     .eq("status", "published")
     .order("published_at", { ascending: false })
   if (error) throw error
-  return data as { slug: string; published_at: string; updated_at: string; category: { slug: string } }[]
+
+  return (data ?? [])
+    .map((row) => {
+      const category = Array.isArray(row.category) ? row.category[0] : row.category
+      if (!category?.slug || !row.slug || !row.published_at || !row.updated_at) return null
+      return {
+        slug: row.slug,
+        published_at: row.published_at,
+        updated_at: row.updated_at,
+        category: { slug: category.slug },
+      }
+    })
+    .filter((row): row is PublishedSlug => row !== null)
 }
 
 export async function searchPosts(query: string, limit = 24) {
