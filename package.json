@@ -9,18 +9,40 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "@tiptap/extension-image": "^3.27.0",
+    "@tiptap/extension-link": "^3.27.0",
+    "@tiptap/extension-placeholder": "^3.27.0",
+    "@tiptap/react": "^3.27.0",
+    "@tiptap/starter-kit": "^3.27.0",
+    "better-auth": "^1.6.19",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "he": "^1.2.0",
+    "lucide-react": "^1.21.0",
     "next": "16.2.9",
+    "next-themes": "^0.4.6",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "slugify": "^1.6.9",
+    "tailwind-merge": "^3.6.0",
+    "tiptap": "^1.32.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/he": "^1.2.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "prettier": "^3.8.4",
+    "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "ws": "^8.21.0"
   }
 }
