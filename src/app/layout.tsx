@@ -1,27 +1,7 @@
 import type { Metadata } from "next"
-import { Inter, IBM_Plex_Sans, Urbanist } from "next/font/google"
 import { ThemeProvider } from "@/components/ThemeProvider"
+import { inter, ibmPlex, urbanist } from "@/lib/fonts"
 import "./globals.css"
-
-const inter = Inter({
-  subsets: ["latin", "greek"],
-  variable: "--font-inter",
-  display: "swap",
-})
-
-const ibmPlex = IBM_Plex_Sans({
-  subsets: ["latin", "greek"],
-  variable: "--font-display-sans",
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
-})
-
-const urbanist = Urbanist({
-  subsets: ["latin"],
-  variable: "--font-urbanist",
-  display: "swap",
-  weight: ["900"],
-})
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://alivemag.gr"),

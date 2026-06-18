@@ -89,7 +89,7 @@ export default async function HomePage() {
                       src={posts[0].cover_image_url}
                       alt={posts[0].cover_image_alt ?? posts[0].title}
                       fill
-                      sizes="100vw"
+                      sizes="(max-width: 639px) calc(100vw - 2rem), calc(100vw - 3rem)"
                       className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                     />
                   )}
