@@ -22,3 +22,13 @@ export function estimateReadTime(html: string): number {
 export function absoluteUrl(path: string) {
   return `${process.env.NEXT_PUBLIC_SITE_URL}${path}`
 }
+
+export function cleanExcerpt(text: string | null | undefined): string {
+  if (!text) return ""
+  return text
+    .replace(/\s*\[&hellip;\]/g, "")
+    .replace(/\s*\[&#8230;\]/g, "")
+    .replace(/\s*\[…\]/g, "")
+    .replace(/\s*\[\.\.\.\]/g, "")
+    .trim()
+}

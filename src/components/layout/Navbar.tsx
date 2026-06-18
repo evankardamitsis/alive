@@ -2,12 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, X, Search } from "lucide-react"
-import { useState } from "react"
-import { cn } from "@/lib/utils"
+import { useTheme } from "next-themes"
+import { Search, Sun, Moon, Menu, X } from "lucide-react"
+import { useState, useEffect } from "react"
 
 const NAV_LINKS = [
   { label: "Spotlight", href: "/spotlight" },
+  { label: "Interviews", href: "/interviews" },
   { label: "Reviews", href: "/reviews" },
   { label: "Opinions", href: "/opinions" },
   { label: "Liveshows", href: "/liveshows" },
@@ -16,56 +17,93 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const pathname = usePathname()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   const [open, setOpen] = useState(false)
 
+  useEffect(() => setMounted(true), [])
+
   return (
-    <header className="sticky top-0 z-50 border-b border-[#222] bg-[#0d0d0d]/90 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-        <Link href="/" className="text-xl font-black tracking-tight text-white">
+    <header
+      className="sticky top-0 z-50"
+      style={{ backgroundColor: "var(--bg)", borderBottom: "1px solid var(--border)" }}
+    >
+      <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between px-6 gap-8">
+        {/* Logo */}
+        <Link
+          href="/"
+          className="shrink-0 text-xl font-black tracking-tighter"
+          style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
+        >
           ALIVE
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-6 md:flex">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "text-sm font-medium transition-colors",
-                pathname.startsWith(link.href)
-                  ? "text-white"
-                  : "text-neutral-400 hover:text-white"
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
+        <nav className="hidden md:flex items-center gap-1 flex-1">
+          {NAV_LINKS.map((link) => {
+            const active = pathname.startsWith(link.href)
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
+                style={{
+                  color: active ? "var(--bg)" : "var(--fg-2)",
+                  backgroundColor: active ? "var(--fg)" : "transparent",
+                }}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
         </nav>
 
-        <div className="flex items-center gap-3">
-          <Link href="/search" aria-label="Search" className="text-neutral-400 hover:text-white transition-colors">
-            <Search size={18} />
-          </Link>
-          <button
-            className="md:hidden text-neutral-400 hover:text-white transition-colors"
-            onClick={() => setOpen((v) => !v)}
-            aria-label="Toggle menu"
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/search"
+            aria-label="Search"
+            className="p-2 rounded-full transition-colors"
+            style={{ color: "var(--fg-2)" }}
           >
-            {open ? <X size={20} /> : <Menu size={20} />}
+            <Search size={17} />
+          </Link>
+
+          {mounted && (
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label="Toggle theme"
+              className="p-2 rounded-full transition-colors"
+              style={{ color: "var(--fg-2)" }}
+            >
+              {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+          )}
+
+          <button
+            className="md:hidden p-2 rounded-full"
+            style={{ color: "var(--fg-2)" }}
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Menu"
+          >
+            {open ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
       </div>
 
       {/* Mobile menu */}
       {open && (
-        <div className="border-t border-[#222] bg-[#0d0d0d] px-4 py-4 md:hidden">
+        <div className="md:hidden px-6 pb-4" style={{ borderTop: "1px solid var(--border)" }}>
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               onClick={() => setOpen(false)}
-              className="block py-3 text-sm font-medium text-neutral-300 hover:text-white"
+              className="block py-3 text-sm font-medium"
+              style={{
+                color: pathname.startsWith(link.href) ? "var(--fg)" : "var(--fg-2)",
+                borderBottom: "1px solid var(--border)",
+              }}
             >
               {link.label}
             </Link>

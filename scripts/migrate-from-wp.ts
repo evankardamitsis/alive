@@ -11,6 +11,7 @@ import { resolve } from "path"
 import { createClient } from "@supabase/supabase-js"
 import slugify from "slugify"
 import he from "he"
+import ws from "ws"
 
 function loadEnvFile(filename: string) {
   try {
@@ -89,13 +90,20 @@ async function main() {
   // ── 1. Upsert authors ──────────────────────────────────────
   const authorMap = new Map<number, string>() // wpId → supabase uuid
   for (const u of wpAuthors) {
-    const slug = toSlug(u.name)
+    // WP may set display_name to the email — fall back to slug-derived name
+    const rawName: string = (u.nickname && !u.nickname.includes("@")) ? u.nickname : u.name
+    const name = rawName.includes("@")
+      ? (u.slug as string).replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
+      : he.decode(rawName)
+    const slug = u.slug || toSlug(name)
+    const email = u.email || `${slug}@alivemag.gr`
     const { data } = await supabase
       .from("authors")
-      .upsert({ name: u.name, slug, email: u.email || `${slug}@alivemag.gr`, role: "editor" }, { onConflict: "slug" })
+      .upsert({ name, slug, email, role: "editor" }, { onConflict: "slug" })
       .select("id")
       .single()
     if (data) authorMap.set(u.id, data.id)
+    console.log(`  Author: ${name} (${email})`)
   }
   console.log("Authors done.")
 
@@ -135,13 +143,18 @@ async function main() {
     const authorId = authorMap.get(p.author) ?? fallbackAuthorId
     const categoryId = categoryMap.get(p.categories?.[0]) ?? fallbackCategoryId
 
+    const title = he.decode(p.title.rendered)
+    const excerpt = p.excerpt?.rendered
+      ? he.decode(p.excerpt.rendered.replace(/<[^>]+>/g, "")).trim() || null
+      : null
+
     const { data: post } = await supabase
       .from("posts")
       .upsert(
         {
-          title: p.title.rendered,
+          title,
           slug,
-          excerpt: p.excerpt?.rendered?.replace(/<[^>]+>/g, "").trim() || null,
+          excerpt,
           content: p.content.rendered,
           status: "published",
           author_id: authorId,
