@@ -6,6 +6,7 @@ import { useTheme } from "next-themes"
 import { Search, Sun, Moon } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Logo } from "@/components/Logo"
+import { SearchModal } from "@/components/search/SearchModal"
 
 const NAV_LINKS = [
   { label: "Culture", href: "/culture", color: "#a8dadc" },
@@ -21,6 +22,19 @@ export function Navbar() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [open, setOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  // Cmd+K to open search
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
 
   useEffect(() => setMounted(true), [])
 
@@ -39,6 +53,7 @@ export function Navbar() {
 
   return (
     <>
+      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <header
         className="fixed top-0 left-0 right-0 z-50"
         style={{ backgroundColor: "var(--bg)", borderBottom: "1px solid var(--border)" }}
@@ -78,14 +93,14 @@ export function Navbar() {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            <Link
-              href="/search"
+            <button
+              onClick={() => setSearchOpen(true)}
               aria-label="Search"
               className="p-2 rounded-full transition-colors"
               style={{ color: "var(--fg-2)" }}
             >
               <Search size={17} />
-            </Link>
+            </button>
 
             {mounted && (
               <button
@@ -194,15 +209,14 @@ export function Navbar() {
         >
           <Logo size="sm" showTag={false} />
           <div className="flex items-center gap-3">
-            <Link
-              href="/search"
-              onClick={() => setOpen(false)}
+            <button
+              onClick={() => { setOpen(false); setSearchOpen(true) }}
               className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full"
               style={{ border: "1px solid var(--border)", color: "var(--fg-2)" }}
             >
               <Search size={14} />
               Search
-            </Link>
+            </button>
             {mounted && (
               <button
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

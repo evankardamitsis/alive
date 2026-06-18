@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import type { Metadata } from "next"
-import { getPostBySlug, getRelatedPosts, getAdjacentPosts } from "@/lib/supabase/queries"
+import { getPostBySlug, getRelatedPosts, getAdjacentPosts, getAllPublishedSlugs } from "@/lib/supabase/queries"
 import { formatDate, estimateReadTime, cleanExcerpt } from "@/lib/utils"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { CategoryPill } from "@/components/article/ArticleCard"
@@ -10,6 +10,12 @@ import { ReadingProgress } from "@/components/article/ReadingProgress"
 import { ShareButtons } from "@/components/article/ShareButtons"
 
 export const revalidate = false
+export const dynamicParams = true
+
+export async function generateStaticParams() {
+  const slugs = await getAllPublishedSlugs()
+  return slugs.map((p) => ({ category: p.category.slug, slug: p.slug }))
+}
 
 interface Props {
   params: Promise<{ category: string; slug: string }>
@@ -20,16 +26,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = decodeURIComponent(rawSlug)
   const post = await getPostBySlug(slug)
   if (!post) return {}
+  const ogParams = new URLSearchParams({
+    title: post.title,
+    category: post.category.name,
+    color: post.category.color ?? "#e63946",
+    ...(post.cover_image_url ? { image: post.cover_image_url } : {}),
+  })
+  const ogImage = `https://alivemag.gr/api/og?${ogParams}`
+
   return {
     title: post.title,
     description: cleanExcerpt(post.excerpt) || undefined,
     openGraph: {
       title: post.title,
       description: cleanExcerpt(post.excerpt) || undefined,
-      images: post.cover_image_url ? [{ url: post.cover_image_url }] : [],
+      images: [{ url: ogImage, width: 1200, height: 630 }],
       type: "article",
       publishedTime: post.published_at ?? undefined,
-      authors: [post.author.name],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: cleanExcerpt(post.excerpt) || undefined,
+      images: [ogImage],
     },
   }
 }
@@ -71,31 +90,12 @@ export default async function ArticlePage({ params }: Props) {
               >
                 {post.title}
               </h1>
-              {excerpt && (
-                <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--fg-2)" }}>
-                  {excerpt}
-                </p>
-              )}
             </div>
 
             <div className="mt-8 flex items-center justify-between flex-wrap gap-3" style={{ borderTop: "1px solid var(--border)", paddingTop: "1.5rem" }}>
-              <div className="flex items-center gap-3">
-                {post.author.avatar_url && (
-                  <Image
-                    src={post.author.avatar_url}
-                    alt={post.author.name}
-                    width={32}
-                    height={32}
-                    className="rounded-full shrink-0"
-                  />
-                )}
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--fg)" }}>{post.author.name}</p>
-                  <p className="text-xs" style={{ color: "var(--fg-3)" }}>
-                    {formatDate(post.published_at!)} · {readTime} λεπτά ανάγνωση
-                  </p>
-                </div>
-              </div>
+              <p className="text-xs" style={{ color: "var(--fg-3)" }}>
+                {formatDate(post.published_at!)} · {readTime} λεπτά ανάγνωση
+              </p>
               <ShareButtons title={post.title} url={postUrl} />
             </div>
           </div>
@@ -186,30 +186,6 @@ export default async function ArticlePage({ params }: Props) {
           {/* Sidebar */}
           <aside className="hidden xl:block">
             <div className="sticky top-6 space-y-8">
-
-              {/* Author */}
-              <div className="rounded-2xl p-5" style={{ backgroundColor: "var(--bg-2)" }}>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-4" style={{ color: "var(--fg-3)" }}>
-                  Συγγραφέας
-                </p>
-                <div className="flex items-center gap-3">
-                  {post.author.avatar_url && (
-                    <Image
-                      src={post.author.avatar_url}
-                      alt={post.author.name}
-                      width={44}
-                      height={44}
-                      className="rounded-full shrink-0"
-                    />
-                  )}
-                  <div>
-                    <p className="font-semibold text-sm" style={{ color: "var(--fg)" }}>{post.author.name}</p>
-                    {post.author.bio && (
-                      <p className="text-xs mt-1 line-clamp-3 leading-relaxed" style={{ color: "var(--fg-2)" }}>{post.author.bio}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
 
               {/* Tags */}
               {post.tags && post.tags.length > 0 && (

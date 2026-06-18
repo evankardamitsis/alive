@@ -133,6 +133,45 @@ export async function getAdjacentPosts(post: PostWithRelations) {
   }
 }
 
+export async function getTagBySlug(slug: string) {
+  const supabase = createPublicClient()
+  const { data } = await supabase.from("tags").select("*").eq("slug", slug).maybeSingle()
+  return data as { id: string; name: string; slug: string } | null
+}
+
+export async function getPostsByTag(tagSlug: string, limit = 24) {
+  const supabase = createPublicClient()
+  const tag = await getTagBySlug(tagSlug)
+  if (!tag) return []
+  const { data, error } = await supabase
+    .from("posts")
+    .select(`*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`)
+    .eq("status", "published")
+    .order("published_at", { ascending: false })
+    .limit(limit)
+  if (error) throw error
+  const posts = withRelations(data as PostWithRelations[])
+  return posts.filter((p) => p.tags?.some((t: any) => t.slug === tagSlug || t.tag?.slug === tagSlug))
+}
+
+export async function getAllTags() {
+  const supabase = createPublicClient()
+  const { data, error } = await supabase.from("tags").select("*").order("name")
+  if (error) throw error
+  return data as { id: string; name: string; slug: string }[]
+}
+
+export async function getAllPublishedSlugs() {
+  const supabase = createPublicClient()
+  const { data, error } = await supabase
+    .from("posts")
+    .select("slug, published_at, updated_at, category:categories(slug)")
+    .eq("status", "published")
+    .order("published_at", { ascending: false })
+  if (error) throw error
+  return data as { slug: string; published_at: string; updated_at: string; category: { slug: string } }[]
+}
+
 export async function searchPosts(query: string, limit = 24) {
   if (!query.trim()) return []
   const supabase = createPublicClient()

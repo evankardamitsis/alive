@@ -104,7 +104,7 @@ export default async function HomePage() {
                       {posts[0].title}
                     </h3>
                     <p className="mt-1 text-xs text-white/60">
-                      {posts[0].author.name} · {formatDate(posts[0].published_at!)}
+                      {formatDate(posts[0].published_at!)}
                     </p>
                   </div>
                 </Link>
@@ -147,7 +147,7 @@ export default async function HomePage() {
                       </p>
                     )}
                     <p className="mt-4 text-xs" style={{ color: "var(--fg-3)" }}>
-                      {posts[0].author.name} · {formatDate(posts[0].published_at!)}
+                      {formatDate(posts[0].published_at!)}
                     </p>
                   </div>
                 </Link>
@@ -225,7 +225,7 @@ function HeroCard({ post }: { post: PostWithRelations }) {
           {post.title}
         </h2>
         <p className="mt-2 text-sm text-white/60">
-          {post.author.name} · {formatDate(post.published_at!)}
+          {formatDate(post.published_at!)}
         </p>
       </div>
     </Link>
@@ -269,6 +269,7 @@ function SidebarCard({ post, last, index }: { post: PostWithRelations; last: boo
           {formatDate(post.published_at!)}
         </p>
       </div>
+
     </Link>
   )
 }

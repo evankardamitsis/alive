@@ -19,7 +19,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const categories = await getAllCategories()
   const cat = categories.find((c) => c.slug === category)
   if (!cat) return {}
-  return { title: cat.name, description: cat.description ?? undefined }
+  const ogParams = new URLSearchParams({ title: cat.name, color: cat.color ?? "#e63946" })
+  const ogImage = `https://alivemag.gr/api/og?${ogParams}`
+  return {
+    title: cat.name,
+    description: cat.description ?? undefined,
+    openGraph: { title: cat.name, images: [{ url: ogImage, width: 1200, height: 630 }] },
+    twitter: { card: "summary_large_image", images: [ogImage] },
+  }
 }
 
 export default async function CategoryPage({ params }: Props) {
