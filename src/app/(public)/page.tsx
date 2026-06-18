@@ -1,7 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { getFeaturedPosts, getPublishedPosts, getCategorySpotlights } from "@/lib/supabase/queries"
-import { formatDate } from "@/lib/utils"
+import { formatDate, cleanExcerpt } from "@/lib/utils"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { Logo } from "@/components/Logo"
 import type { PostWithRelations } from "@/types"
@@ -9,14 +9,19 @@ import type { PostWithRelations } from "@/types"
 export const revalidate = 60
 
 export default async function HomePage() {
-  const featured = await getFeaturedPosts(4)
-  const hero = featured[0] ?? null
-  const sidebarPosts = featured.slice(1, 4)
+  const [featured, allLatest] = await Promise.all([
+    getFeaturedPosts(5),
+    getPublishedPosts({ limit: 5 }),
+  ])
 
-  const heroIds = featured.map((p) => p.id)
+  const heroPool = featured.length >= 5 ? featured : allLatest
+  const hero = heroPool[0] ?? null
+  const sidebarPosts = heroPool.slice(1, 5)
+
+  const heroIds = heroPool.slice(0, 5).map((p) => p.id)
   const [latest, spotlights] = await Promise.all([
     getPublishedPosts({ limit: 8, excludeIds: heroIds }),
-    getCategorySpotlights(4),
+    getCategorySpotlights(5),
   ])
 
   return (
@@ -29,9 +34,12 @@ export default async function HomePage() {
         >
           {hero && <HeroCard post={hero} />}
 
-          <div style={{ borderLeft: "1px solid var(--border)" }}>
-            {/* Masthead */}
-            <div className="px-6 py-7 flex flex-col gap-2" style={{
+          <div
+            className="lg:border-l border-t"
+            style={{ borderColor: "var(--border)" }}
+          >
+            {/* Masthead — desktop only */}
+            <div className="hidden lg:flex px-6 py-7 flex-col gap-2" style={{
               borderBottom: "1px solid var(--border)",
               background: "linear-gradient(135deg, var(--bg-3) 0%, var(--bg-2) 100%)",
             }}>
@@ -41,9 +49,10 @@ export default async function HomePage() {
               <Logo size="lg" showTag={false} />
             </div>
 
-            <div>
+            {/* Sidebar cards — 2-col on mobile, stacked on desktop */}
+            <div className="grid grid-cols-2 lg:block">
               {sidebarPosts.map((post, i) => (
-                <SidebarCard key={post.id} post={post} last={i === sidebarPosts.length - 1} />
+                <SidebarCard key={post.id} post={post} last={i === sidebarPosts.length - 1} index={i} />
               ))}
             </div>
           </div>
@@ -67,13 +76,92 @@ export default async function HomePage() {
         <section key={category.id} className="max-w-[1600px] mx-auto px-4 pb-16">
           <SectionLabel label={category.name} href={`/${category.slug}`} color={category.color ?? undefined} />
 
-          {/* First post large, rest in a row */}
-          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr_1fr_1fr] gap-6">
-            {posts[0] && <ArticleCard post={posts[0]} />}
-            {posts.slice(1).map((post) => (
-              <ArticleCard key={post.id} post={post} variant="compact" />
-            ))}
-          </div>
+          {posts.length > 0 && (
+            <>
+              {/* Mobile: feature + 2×2 grid */}
+              <div className="md:hidden">
+                <Link
+                  href={`/${posts[0].category.slug}/${posts[0].slug}`}
+                  className="group relative block overflow-hidden rounded-2xl mb-4"
+                  style={{ aspectRatio: "2/3" }}
+                >
+                  {posts[0].cover_image_url && (
+                    <Image
+                      src={posts[0].cover_image_url}
+                      alt={posts[0].cover_image_alt ?? posts[0].title}
+                      fill
+                      sizes="100vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <CategoryPill category={posts[0].category} />
+                    <h3
+                      className="mt-2 text-xl font-bold leading-tight text-white"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      {posts[0].title}
+                    </h3>
+                    <p className="mt-1 text-xs text-white/60">
+                      {posts[0].author.name} · {formatDate(posts[0].published_at!)}
+                    </p>
+                  </div>
+                </Link>
+                <div className="grid grid-cols-2 gap-4">
+                  {posts.slice(1, 5).map((post) => (
+                    <ArticleCard key={post.id} post={post} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Desktop: horizontal feature + 3-card row */}
+              <div className="hidden md:block">
+                <Link
+                  href={`/${posts[0].category.slug}/${posts[0].slug}`}
+                  className="group grid grid-cols-2 gap-6 mb-6 pb-6"
+                  style={{ borderBottom: "1px solid var(--border)" }}
+                >
+                  {posts[0].cover_image_url && (
+                    <div className="relative overflow-hidden rounded-xl" style={{ aspectRatio: "16/9" }}>
+                      <Image
+                        src={posts[0].cover_image_url}
+                        alt={posts[0].cover_image_alt ?? posts[0].title}
+                        fill
+                        sizes="50vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-col justify-center">
+                    <CategoryPill category={posts[0].category} />
+                    <h3
+                      className="mt-4 text-2xl xl:text-3xl font-bold leading-tight group-hover:opacity-70 transition-opacity"
+                      style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
+                    >
+                      {posts[0].title}
+                    </h3>
+                    {cleanExcerpt(posts[0].excerpt) && (
+                      <p className="mt-3 text-sm leading-relaxed line-clamp-3" style={{ color: "var(--fg-2)" }}>
+                        {cleanExcerpt(posts[0].excerpt)}
+                      </p>
+                    )}
+                    <p className="mt-4 text-xs" style={{ color: "var(--fg-3)" }}>
+                      {posts[0].author.name} · {formatDate(posts[0].published_at!)}
+                    </p>
+                  </div>
+                </Link>
+
+                {posts.slice(1, 4).length > 0 && (
+                  <div className="grid grid-cols-3 gap-6">
+                    {posts.slice(1, 4).map((post) => (
+                      <ArticleCard key={post.id} post={post} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </section>
       ))}
     </div>
@@ -144,18 +232,35 @@ function HeroCard({ post }: { post: PostWithRelations }) {
   )
 }
 
-function SidebarCard({ post, last }: { post: PostWithRelations; last: boolean }) {
+function SidebarCard({ post, last, index }: { post: PostWithRelations; last: boolean; index: number }) {
   const href = `/${post.category.slug}/${post.slug}`
+  const isLeftCol = index % 2 === 0
+  const isLastRow = index >= 2
   return (
     <Link
       href={href}
-      className="group flex gap-4 p-5 transition-colors"
-      style={{ borderBottom: last ? "none" : "1px solid var(--border)" }}
+      className={`group flex flex-col gap-3 p-4 transition-colors lg:flex-row lg:gap-4 lg:p-5 ${last ? "" : "lg:border-b"}`}
+      style={{
+        borderColor: "var(--border)",
+        borderBottom: isLastRow ? "none" : "1px solid var(--border)",
+        borderRight: isLeftCol ? "1px solid var(--border)" : "none",
+      }}
     >
+      {post.cover_image_url && (
+        <div className="relative w-full aspect-[3/2] lg:w-20 lg:h-20 lg:aspect-auto rounded-lg overflow-hidden shrink-0">
+          <Image
+            src={post.cover_image_url}
+            alt={post.cover_image_alt ?? post.title}
+            fill
+            sizes="(max-width: 1024px) 50vw, 80px"
+            className="object-cover"
+          />
+        </div>
+      )}
       <div className="flex-1 min-w-0">
         <CategoryPill category={post.category} small />
         <h3
-          className="mt-2 text-base font-semibold leading-snug line-clamp-3 group-hover:opacity-70 transition-opacity"
+          className="mt-1.5 text-sm font-semibold leading-snug line-clamp-3 group-hover:opacity-70 transition-opacity"
           style={{ color: "var(--fg)" }}
         >
           {post.title}
@@ -164,17 +269,6 @@ function SidebarCard({ post, last }: { post: PostWithRelations; last: boolean })
           {formatDate(post.published_at!)}
         </p>
       </div>
-      {post.cover_image_url && (
-        <div className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden">
-          <Image
-            src={post.cover_image_url}
-            alt={post.cover_image_alt ?? post.title}
-            fill
-            sizes="80px"
-            className="object-cover"
-          />
-        </div>
-      )}
     </Link>
   )
 }
