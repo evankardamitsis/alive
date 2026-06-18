@@ -2,7 +2,7 @@
 
 @theme {
   --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-display: var(--font-playfair), Georgia, serif;
+  --font-display: var(--font-display-sans), system-ui, sans-serif;
 
   --color-red: #e63946;
   --color-spotlight: #e63946;
@@ -30,10 +30,10 @@
   --bg:        #0F0F0F;
   --bg-2:      #181818;
   --bg-3:      #242424;
-  --fg:        #F0F0F0;
-  --fg-2:      #888888;
-  --fg-3:      #555555;
-  --border:    #282828;
+  --fg:        #F2F2F0;
+  --fg-2:      #B8B8B4;
+  --fg-3:      #6A6A66;
+  --border:    #2C2C2A;
   color-scheme: dark;
 }
 
@@ -50,10 +50,10 @@ body {
 
 /* ── Article prose ── */
 .article-content { max-width: 68ch; }
-.article-content h2 { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 1rem; color: var(--fg); }
-.article-content h3 { font-size: 1.2rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.75rem; color: var(--fg); }
+.article-content h2 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 2.5rem; margin-bottom: 0.9rem; color: var(--fg); }
+.article-content h3 { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; margin-top: 2rem; margin-bottom: 0.75rem; color: var(--fg); }
 .article-content p  { font-size: 1.1rem; line-height: 1.85; margin-bottom: 1.5rem; color: var(--fg-2); }
 .article-content a  { color: var(--color-red); text-decoration: underline; text-underline-offset: 3px; }
-.article-content blockquote { border-left: 3px solid var(--color-red); padding-left: 1.25rem; font-style: italic; color: var(--fg-2); margin: 2rem 0; font-family: var(--font-display); font-size: 1.2rem; }
+.article-content blockquote { border-left: 3px solid var(--color-red); padding-left: 1.25rem; color: var(--fg-2); margin: 2rem 0; font-family: var(--font-display); font-size: 1.15rem; font-weight: 500; }
 .article-content img { border-radius: 4px; margin: 2rem 0; width: 100%; }
 .article-content ul, .article-content ol { padding-left: 1.5rem; margin-bottom: 1.5rem; color: var(--fg-2); line-height: 1.8; }

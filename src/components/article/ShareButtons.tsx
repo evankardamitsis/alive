@@ -5,9 +5,10 @@ import { useState } from "react"
 interface Props {
   title: string
   url: string
+  onDark?: boolean
 }
 
-export function ShareButtons({ title, url }: Props) {
+export function ShareButtons({ title, url, onDark }: Props) {
   const [copied, setCopied] = useState(false)
 
   const tweet = () =>
@@ -32,7 +33,9 @@ export function ShareButtons({ title, url }: Props) {
 
   const btnClass =
     "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-60"
-  const btnStyle = { border: "1px solid var(--border)", color: "var(--fg-2)" }
+  const btnStyle = onDark
+    ? { border: "1px solid rgba(255,255,255,0.25)", color: "rgba(255,255,255,0.8)" }
+    : { border: "1px solid var(--border)", color: "var(--fg-2)" }
 
   return (
     <div className="flex flex-wrap gap-2">

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { Search, Sun, Moon, Menu, X } from "lucide-react"
 import { useState, useEffect } from "react"
+import { Logo } from "@/components/Logo"
 
 const NAV_LINKS = [
   { label: "Spotlight", href: "/spotlight" },
@@ -30,12 +31,8 @@ export function Navbar() {
     >
       <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between px-6 gap-8">
         {/* Logo */}
-        <Link
-          href="/"
-          className="shrink-0 text-xl font-black tracking-tighter"
-          style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
-        >
-          ALIVE
+        <Link href="/" className="shrink-0">
+          <Logo size="md" showTag={false} />
         </Link>
 
         {/* Desktop nav */}

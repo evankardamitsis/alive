@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Inter, Playfair_Display } from "next/font/google"
+import { Inter, IBM_Plex_Sans, Urbanist } from "next/font/google"
 import { ThemeProvider } from "@/components/ThemeProvider"
 import "./globals.css"
 
@@ -9,10 +9,18 @@ const inter = Inter({
   display: "swap",
 })
 
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-playfair",
+const ibmPlex = IBM_Plex_Sans({
+  subsets: ["latin", "greek"],
+  variable: "--font-display-sans",
   display: "swap",
+  weight: ["400", "500", "600", "700"],
+})
+
+const urbanist = Urbanist({
+  subsets: ["latin"],
+  variable: "--font-urbanist",
+  display: "swap",
+  weight: ["900"],
 })
 
 export const metadata: Metadata = {
@@ -34,7 +42,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="el" className={`${inter.variable} ${playfair.variable} h-full`} suppressHydrationWarning>
+    <html lang="el" className={`${inter.variable} ${ibmPlex.variable} ${urbanist.variable} h-full`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col antialiased" style={{ backgroundColor: "var(--bg)", color: "var(--fg)" }}>
         <ThemeProvider>{children}</ThemeProvider>
       </body>

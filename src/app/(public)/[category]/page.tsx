@@ -32,45 +32,58 @@ export default async function CategoryPage({ params }: Props) {
   const [featured, ...rest] = posts
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 py-12">
-      <header className="mb-10 pb-8" style={{ borderBottom: "1px solid var(--border)" }}>
-        <span
-          className="inline-block rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest text-black mb-4"
-          style={{ backgroundColor: cat.color ?? "#e63946" }}
-        >
-          {cat.name}
-        </span>
-        <h1
-          className="text-5xl font-black tracking-tighter"
-          style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
-        >
-          {cat.name}
-        </h1>
-        {cat.description && (
-          <p className="mt-3 text-lg max-w-xl" style={{ color: "var(--fg-2)" }}>
-            {cat.description}
+    <div>
+      {/* ── Category header ── */}
+      <div
+        className="border-b"
+        style={{ borderColor: "var(--border)" }}
+      >
+        <div className="max-w-[1600px] mx-auto px-6 xl:px-12 py-10">
+          <div
+            className="inline-block w-10 h-1 rounded-full mb-5"
+            style={{ backgroundColor: cat.color ?? "#e63946" }}
+          />
+          <h1
+            className="text-5xl xl:text-6xl font-black tracking-tight leading-none"
+            style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
+          >
+            {cat.name}
+          </h1>
+          {cat.description && (
+            <p className="mt-3 text-lg max-w-xl" style={{ color: "var(--fg-2)" }}>
+              {cat.description}
+            </p>
+          )}
+          <p className="mt-4 text-xs font-medium uppercase tracking-widest" style={{ color: "var(--fg-3)" }}>
+            {posts.length} {posts.length === 1 ? "article" : "articles"}
           </p>
-        )}
-      </header>
+        </div>
+      </div>
 
-      {posts.length === 0 ? (
-        <p style={{ color: "var(--fg-3)" }}>No articles in this category yet.</p>
-      ) : (
-        <>
-          {featured && (
-            <div className="mb-10">
-              <ArticleCard post={featured} variant="featured" />
-            </div>
-          )}
-          {rest.length > 0 && (
-            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-              {rest.map((post) => (
-                <ArticleCard key={post.id} post={post} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      {/* ── Posts ── */}
+      <div className="max-w-[1600px] mx-auto px-6 xl:px-12 py-10">
+        {posts.length === 0 ? (
+          <p style={{ color: "var(--fg-3)" }}>No articles in this category yet.</p>
+        ) : (
+          <>
+            {/* Featured — split hero style */}
+            {featured && (
+              <div className="mb-12">
+                <ArticleCard post={featured} variant="featured" />
+              </div>
+            )}
+
+            {/* Grid */}
+            {rest.length > 0 && (
+              <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {rest.map((post) => (
+                  <ArticleCard key={post.id} post={post} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }

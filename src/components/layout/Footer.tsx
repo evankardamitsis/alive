@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { Logo } from "@/components/Logo"
 
 export function Footer() {
   return (
@@ -6,15 +7,8 @@ export function Footer() {
       <div className="mx-auto max-w-[1600px] px-6 py-12">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
-            <span
-              className="text-2xl font-black tracking-tighter"
-              style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
-            >
-              ALIVE
-            </span>
-            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--fg-2)" }}>
-              Keep the curiosity ALIVE.
-              <br />
+            <Logo size="md" />
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--fg-2)" }}>
               Το πρώτο community-first μουσικό blog στην Ελλάδα.
             </p>
           </div>

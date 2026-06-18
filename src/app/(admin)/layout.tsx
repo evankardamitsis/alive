@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { LayoutDashboard, FileText, Image, Users, Tag, LogOut } from "lucide-react"
+import { Logo } from "@/components/Logo"
 
 // TODO: replace with real session check from better-auth
 async function getSession() {
@@ -24,7 +25,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       {/* Sidebar */}
       <aside className="flex w-56 shrink-0 flex-col border-r border-[#222] bg-[#111]">
         <div className="flex h-14 items-center px-4 border-b border-[#222]">
-          <span className="text-sm font-black tracking-tight text-white">ALIVE</span>
+          <Logo size="sm" showTag={false} />
           <span className="ml-2 rounded bg-[#e63946] px-1.5 py-0.5 text-[10px] font-bold text-white">ADMIN</span>
         </div>
 

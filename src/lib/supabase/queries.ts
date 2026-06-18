@@ -12,9 +12,10 @@ export async function getPublishedPosts(options?: {
   offset?: number
   categorySlug?: string
   featured?: boolean
+  excludeIds?: string[]
 }) {
   const supabase = createPublicClient()
-  const { limit = 12, offset = 0, categorySlug, featured } = options ?? {}
+  const { limit = 12, offset = 0, categorySlug, featured, excludeIds } = options ?? {}
 
   let categoryId: string | undefined
   if (categorySlug) {
@@ -36,16 +37,24 @@ export async function getPublishedPosts(options?: {
     .order("published_at", { ascending: false })
     .range(offset, offset + limit - 1)
 
-  if (categoryId) {
-    query = query.eq("category_id", categoryId)
-  }
-  if (featured !== undefined) {
-    query = query.eq("featured", featured)
-  }
+  if (categoryId) query = query.eq("category_id", categoryId)
+  if (featured !== undefined) query = query.eq("featured", featured)
+  if (excludeIds && excludeIds.length > 0) query = query.not("id", "in", `(${excludeIds.join(",")})`)
 
   const { data, error } = await query
   if (error) throw error
   return withRelations(data as PostWithRelations[])
+}
+
+export async function getCategorySpotlights(perCategory = 4) {
+  const categories = await getAllCategories()
+  const results = await Promise.all(
+    categories.map(async (cat) => {
+      const posts = await getPublishedPosts({ categorySlug: cat.slug, limit: perCategory })
+      return { category: cat, posts }
+    })
+  )
+  return results.filter((r) => r.posts.length > 0)
 }
 
 export async function getPostBySlug(slug: string) {
@@ -122,6 +131,21 @@ export async function getAdjacentPosts(post: PostWithRelations) {
     prev: prevData as (PostWithRelations & { category: PostWithRelations["category"] }) | null,
     next: nextData as (PostWithRelations & { category: PostWithRelations["category"] }) | null,
   }
+}
+
+export async function searchPosts(query: string, limit = 24) {
+  if (!query.trim()) return []
+  const supabase = createPublicClient()
+  const term = `%${query.trim()}%`
+  const { data, error } = await supabase
+    .from("posts")
+    .select(`*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`)
+    .eq("status", "published")
+    .or(`title.ilike.${term},excerpt.ilike.${term}`)
+    .order("published_at", { ascending: false })
+    .limit(limit)
+  if (error) throw error
+  return withRelations(data as PostWithRelations[])
 }
 
 export async function getRelatedPosts(post: PostWithRelations, limit = 4) {
