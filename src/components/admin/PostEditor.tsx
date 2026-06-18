@@ -198,9 +198,9 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
           <h1 className="text-xl font-bold" style={{ color: "var(--fg)" }}>{isNew ? "New Post" : "Edit Post"}</h1>
         </div>
         <div className="flex items-center gap-2">
-          {!isNew && initial?.slug && (
+          {!isNew && (
             <NextLink
-              href={`/${categories.find(c => c.id === categoryId)?.name?.toLowerCase() ?? ""}/${initial.slug}`}
+              href={`/admin/posts/${initial!.id}/preview`}
               target="_blank"
               className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors"
               style={{ color: "var(--fg-2)", border: "1px solid var(--border)" }}

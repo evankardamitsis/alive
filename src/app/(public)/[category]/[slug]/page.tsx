@@ -67,8 +67,34 @@ export default async function ArticlePage({ params }: Props) {
   const excerpt = cleanExcerpt(post.excerpt)
   const postUrl = `https://alivemag.gr/${category}/${slug}`
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: excerpt || undefined,
+    url: postUrl,
+    datePublished: post.published_at,
+    dateModified: post.updated_at ?? post.published_at,
+    image: post.cover_image_url
+      ? { "@type": "ImageObject", url: post.cover_image_url }
+      : undefined,
+    author: post.author
+      ? { "@type": "Person", name: post.author.name }
+      : undefined,
+    publisher: {
+      "@type": "Organization",
+      name: "Alive Magazine",
+      url: "https://alivemag.gr",
+    },
+    inLanguage: "el",
+  }
+
   return (
     <div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <ReadingProgress />
 
       {/* ── Split hero ── */}
