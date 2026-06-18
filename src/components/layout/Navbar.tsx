@@ -8,12 +8,12 @@ import { useState, useEffect } from "react"
 import { Logo } from "@/components/Logo"
 
 const NAV_LINKS = [
-  { label: "Spotlight", href: "/spotlight", color: "#e63946" },
-  { label: "Interviews", href: "/interviews", color: "#c77dff" },
-  { label: "Reviews", href: "/reviews", color: "#2a9d8f" },
+  { label: "Culture", href: "/culture", color: "#a8dadc" },
   { label: "Opinions", href: "/opinions", color: "#e9c46a" },
   { label: "Liveshows", href: "/liveshows", color: "#f4a261" },
-  { label: "Culture", href: "/culture", color: "#a8dadc" },
+  { label: "Reviews", href: "/reviews", color: "#2a9d8f" },
+  { label: "Spotlight", href: "/spotlight", color: "#e63946" },
+  { label: "Interviews", href: "/interviews", color: "#c77dff" },
 ]
 
 export function Navbar() {
@@ -40,10 +40,10 @@ export function Navbar() {
   return (
     <>
       <header
-        className="sticky top-0 z-50"
+        className="fixed top-0 left-0 right-0 z-50"
         style={{ backgroundColor: "var(--bg)", borderBottom: "1px solid var(--border)" }}
       >
-        <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between px-6 gap-8">
+        <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between px-6 gap-8">
           {/* Logo */}
           <Link href="/" className="shrink-0">
             <Logo size="md" showTag={false} />
@@ -57,12 +57,19 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
+                  className="group flex items-center gap-1.5 px-3 py-2 rounded-full font-bold tracking-tight transition-all"
                   style={{
-                    color: active ? "var(--bg)" : "var(--fg-2)",
-                    backgroundColor: active ? "var(--fg)" : "transparent",
+                    fontSize: "0.95rem",
+                    color: active ? link.color : "var(--fg)",
+                    backgroundColor: active ? "color-mix(in srgb, var(--fg) 12%, transparent)" : "transparent",
                   }}
+                  onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.color = link.color; (e.currentTarget as HTMLElement).style.backgroundColor = "color-mix(in srgb, var(--fg) 12%, transparent)" } }}
+                  onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.color = "var(--fg)"; (e.currentTarget as HTMLElement).style.backgroundColor = "transparent" } }}
                 >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125"
+                    style={{ backgroundColor: link.color }}
+                  />
                   {link.label}
                 </Link>
               )
@@ -136,7 +143,7 @@ export function Navbar() {
         }}
       >
         {/* Top spacer (navbar height) */}
-        <div className="h-14 shrink-0" />
+        <div className="h-16 shrink-0" />
 
         {/* Nav links */}
         <nav className="flex-1 flex flex-col justify-center px-8 gap-2 overflow-y-auto py-8">

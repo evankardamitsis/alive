@@ -4,7 +4,7 @@ import { Logo } from "@/components/Logo"
 export function Footer() {
   return (
     <footer style={{ borderTop: "1px solid var(--border)", backgroundColor: "var(--bg-2)" }}>
-      <div className="mx-auto max-w-[1600px] px-6 py-12">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 py-10">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
             <Logo size="md" />
@@ -67,9 +67,20 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 pt-6 flex items-center justify-between text-xs" style={{ borderTop: "1px solid var(--border)", color: "var(--fg-3)" }}>
+        <div className="mt-10 pt-6 flex flex-wrap items-center justify-between gap-3 text-xs" style={{ borderTop: "1px solid var(--border)", color: "var(--fg-3)" }}>
           <span>© {new Date().getFullYear()} Alive Magazine</span>
-          <span>Made in Greece 🇬🇷</span>
+          <span>
+            Designed with ❤️ by{" "}
+            <a
+              href="https://belowthefold.gr"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-opacity hover:opacity-60"
+              style={{ color: "var(--fg-2)" }}
+            >
+              Below The Fold
+            </a>
+          </span>
         </div>
       </div>
     </footer>

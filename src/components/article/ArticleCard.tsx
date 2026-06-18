@@ -43,8 +43,8 @@ export function ArticleCard({ post, variant = "default" }: ArticleCardProps) {
     return (
       <Link href={href} className="group block">
         <div
-          className="relative w-full overflow-hidden rounded-2xl mb-5"
-          style={{ aspectRatio: "16/7", backgroundColor: "var(--bg-2)" }}
+          className="relative w-full overflow-hidden rounded-2xl mb-5 article-card-featured"
+          style={{ backgroundColor: "var(--bg-2)" }}
         >
           {post.cover_image_url && (
             <Image

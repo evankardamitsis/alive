@@ -53,20 +53,20 @@ export default async function ArticlePage({ params }: Props) {
       <ReadingProgress />
 
       {/* ── Split hero ── */}
-      <div className="max-w-[1600px] mx-auto px-6 xl:px-12 pt-4">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-6 xl:px-12 pt-4">
         <div
           className="grid grid-cols-1 md:grid-cols-2 overflow-hidden rounded-2xl"
           style={{ border: "1px solid var(--border)", minHeight: 480 }}
         >
           {/* Left — title block */}
           <div
-            className="flex flex-col justify-between p-8 xl:p-12"
+            className="flex flex-col justify-between p-5 md:p-8 xl:p-12"
             style={{ backgroundColor: "var(--bg-2)" }}
           >
             <div>
               <CategoryPill category={post.category} />
               <h1
-                className="mt-5 text-3xl md:text-4xl xl:text-[2.75rem] font-bold leading-[1.08] tracking-tight"
+                className="mt-4 text-2xl md:text-4xl xl:text-[2.75rem] font-bold leading-[1.1] tracking-tight"
                 style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
               >
                 {post.title}
@@ -101,7 +101,7 @@ export default async function ArticlePage({ params }: Props) {
           </div>
 
           {/* Right — image */}
-          <div className="relative min-h-[320px] md:min-h-0">
+          <div className="relative min-h-[260px] md:min-h-0">
             {post.cover_image_url ? (
               <Image
                 src={post.cover_image_url}
@@ -120,7 +120,7 @@ export default async function ArticlePage({ params }: Props) {
       </div>
 
       {/* ── Body + sidebar ── */}
-      <div className="max-w-[1600px] mx-auto px-6 xl:px-12 pt-10 pb-20">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 xl:px-12 pt-8 pb-16">
         <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_300px] xl:gap-16">
 
           {/* Main column */}
@@ -156,7 +156,7 @@ export default async function ArticlePage({ params }: Props) {
             {/* Prev / Next */}
             {(adjacent.prev || adjacent.next) && (
               <div
-                className="mt-10 pt-8 grid grid-cols-2 gap-6"
+                className="mt-10 pt-8 grid grid-cols-1 sm:grid-cols-2 gap-6"
                 style={{ borderTop: "1px solid var(--border)" }}
               >
                 {adjacent.prev ? (

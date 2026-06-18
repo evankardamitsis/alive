@@ -41,15 +41,15 @@ export function ShareButtons({ title, url, onDark }: Props) {
     <div className="flex flex-wrap gap-2">
       <button onClick={tweet} className={btnClass} style={btnStyle}>
         <XIcon />
-        Share
+        <span className="hidden sm:inline">Share</span>
       </button>
       <button onClick={fbShare} className={btnClass} style={btnStyle}>
         <FbIcon />
-        Share
+        <span className="hidden sm:inline">Share</span>
       </button>
       <button onClick={copy} className={btnClass} style={btnStyle}>
         <LinkIcon />
-        {copied ? "Copied!" : "Copy link"}
+        {copied ? "Copied!" : <span className="hidden sm:inline">Copy link</span>}
       </button>
     </div>
   )

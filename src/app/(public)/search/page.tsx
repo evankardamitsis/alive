@@ -16,11 +16,11 @@ export default async function SearchPage({ searchParams }: Props) {
   const results = query ? await searchPosts(query) : []
 
   return (
-    <div className="max-w-[1600px] mx-auto px-6 xl:px-12 py-10">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 xl:px-12 py-8">
       {/* Header */}
       <div className="mb-8">
         <h1
-          className="text-4xl font-black tracking-tight mb-6"
+          className="text-3xl sm:text-4xl font-black tracking-tight mb-6"
           style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
         >
           Search
@@ -42,7 +42,7 @@ export default async function SearchPage({ searchParams }: Props) {
           </p>
 
           {results.length > 0 && (
-            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
               {results.map((post) => (
                 <ArticleCard key={post.id} post={post} />
               ))}

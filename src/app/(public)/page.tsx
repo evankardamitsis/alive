@@ -27,7 +27,7 @@ export default async function HomePage() {
   return (
     <div>
       {/* ── Hero split ── */}
-      <section className="max-w-[1600px] mx-auto px-4 pt-6 pb-8">
+      <section className="max-w-[1600px] mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-6 sm:pb-8">
         <div
           className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-0 overflow-hidden rounded-2xl"
           style={{ border: "1px solid var(--border)" }}
@@ -61,7 +61,7 @@ export default async function HomePage() {
 
       {/* ── Latest ── */}
       {latest.length > 0 && (
-        <section className="max-w-[1600px] mx-auto px-4 pb-16">
+        <section className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12">
           <SectionLabel label="Latest" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {latest.map((post) => (
@@ -73,7 +73,7 @@ export default async function HomePage() {
 
       {/* ── Category spotlights ── */}
       {spotlights.map(({ category, posts }) => (
-        <section key={category.id} className="max-w-[1600px] mx-auto px-4 pb-16">
+        <section key={category.id} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12">
           <SectionLabel label={category.name} href={`/${category.slug}`} color={category.color ?? undefined} />
 
           {posts.length > 0 && (
@@ -216,10 +216,10 @@ function HeroCard({ post }: { post: PostWithRelations }) {
         <div className="absolute inset-0" style={{ backgroundColor: "var(--bg-2)" }} />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 p-8">
+      <div className="absolute bottom-0 left-0 right-0 p-5 md:p-8">
         <CategoryPill category={post.category} />
         <h2
-          className="mt-3 text-3xl font-bold leading-tight text-white line-clamp-3"
+          className="mt-2 text-xl md:text-3xl font-bold leading-tight text-white line-clamp-3"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {post.title}

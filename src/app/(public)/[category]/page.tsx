@@ -38,13 +38,13 @@ export default async function CategoryPage({ params }: Props) {
         className="border-b"
         style={{ borderColor: "var(--border)" }}
       >
-        <div className="max-w-[1600px] mx-auto px-6 xl:px-12 py-10">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 xl:px-12 py-8">
           <div
             className="inline-block w-10 h-1 rounded-full mb-5"
             style={{ backgroundColor: cat.color ?? "#e63946" }}
           />
           <h1
-            className="text-5xl xl:text-6xl font-black tracking-tight leading-none"
+            className="text-3xl sm:text-4xl xl:text-6xl font-black tracking-tight leading-none"
             style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
           >
             {cat.name}
@@ -61,7 +61,7 @@ export default async function CategoryPage({ params }: Props) {
       </div>
 
       {/* ── Posts ── */}
-      <div className="max-w-[1600px] mx-auto px-6 xl:px-12 py-10">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 xl:px-12 py-8 pb-16">
         {posts.length === 0 ? (
           <p style={{ color: "var(--fg-3)" }}>No articles in this category yet.</p>
         ) : (
