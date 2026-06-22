@@ -37,7 +37,7 @@ export function Footer() {
               About
             </h3>
             <ul className="space-y-2.5">
-              {[{ label: "Team", href: "/team" }, { label: "Contact", href: "/contact" }, { label: "Privacy", href: "/privacy" }].map((l) => (
+              {[{ label: "Contact", href: "/contact" }, { label: "Privacy", href: "/privacy" }].map((l) => (
                 <li key={l.href}>
                   <Link href={l.href} className="text-sm transition-opacity hover:opacity-50" style={{ color: "var(--fg-2)" }}>
                     {l.label}

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { getTagBySlug, getPostsByTag, getAllTags } from "@/lib/supabase/queries"
 import { ArticleCard } from "@/components/article/ArticleCard"
+import { pageMetadata } from "@/lib/metadata"
 
 export const revalidate = 60
 
@@ -18,7 +19,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const tag = await getTagBySlug(slug)
   if (!tag) return {}
-  return { title: `#${tag.name}`, description: `All articles tagged #${tag.name}` }
+  const title = `#${tag.name}`
+  const description = `Όλα τα άρθρα με την ετικέτα #${tag.name} — Alive Magazine`
+  return pageMetadata({
+    title,
+    description,
+    path: `/tag/${tag.slug}`,
+    og: { title, description, color: "#e63946" },
+  })
 }
 
 export default async function TagPage({ params }: Props) {

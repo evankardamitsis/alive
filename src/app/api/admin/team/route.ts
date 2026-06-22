@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireAdminUser } from "@/lib/supabase/api-auth"
+import { authRedirectPath } from "@/lib/site"
 
 export async function GET() {
   const { error: authError } = await requireAdminUser(); if (authError) return authError
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
   const supabase = createAdminClient()
 
   const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/admin/reset-password`,
+    redirectTo: authRedirectPath("/reset-password"),
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

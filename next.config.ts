@@ -65,9 +65,11 @@ const nextConfig: NextConfig = {
 
   async redirects() {
     return [
-      // WP permalink pattern → new slugs
-      // e.g. /2024/03/some-post/ → /[category]/some-post
-      // Populated during migration with the full redirect map
+      {
+        source: "/admin/reset-password",
+        destination: "/reset-password",
+        permanent: false,
+      },
     ]
   },
 }

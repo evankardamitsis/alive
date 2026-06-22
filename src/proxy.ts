@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 
-const PUBLIC_PATHS = ["/admin/login", "/admin/reset-password"]
+const PUBLIC_PATHS = ["/admin/login"]
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -44,8 +44,8 @@ export async function proxy(request: NextRequest) {
     return res
   }
 
-  // Authorised user hitting login page — send to dashboard
-  if (isPublicPath) {
+  // Authorised user on login page — send to dashboard
+  if (user && pathname === "/admin/login") {
     return NextResponse.redirect(new URL("/admin", request.url))
   }
 

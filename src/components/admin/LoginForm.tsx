@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { authRedirectPath } from "@/lib/site"
 
 type Mode = "login" | "forgot" | "forgot-sent"
 
@@ -39,7 +40,7 @@ export function LoginForm() {
     setLoading(true)
     const supabase = createClient()
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/admin/reset-password`,
+      redirectTo: authRedirectPath("/reset-password"),
     })
     setLoading(false)
     if (error) { setError(error.message); return }

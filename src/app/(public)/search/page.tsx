@@ -3,8 +3,14 @@ import type { Metadata } from "next"
 import { searchPosts } from "@/lib/supabase/queries"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { SearchInput } from "@/components/search/SearchInput"
+import { pageMetadata } from "@/lib/metadata"
 
-export const metadata: Metadata = { title: "Search" }
+export const metadata: Metadata = pageMetadata({
+  title: "Search",
+  description: "Αναζήτηση άρθρων στο Alive Magazine",
+  path: "/search",
+  og: { title: "Search — Alive Magazine", color: "#e63946" },
+})
 
 interface Props {
   searchParams: Promise<{ q?: string }>

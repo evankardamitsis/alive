@@ -1,10 +1,43 @@
 import Image from "next/image"
 import Link from "next/link"
+import type { Metadata } from "next"
 import { getHeroPost, getPublishedPosts, getCategorySpotlights } from "@/lib/supabase/queries"
 import { formatDate, cleanExcerpt } from "@/lib/utils"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { Logo } from "@/components/Logo"
+import {
+  DEFAULT_DESCRIPTION,
+  pageMetadata,
+  SITE_NAME,
+  SITE_TAGLINE,
+} from "@/lib/metadata"
 import type { PostWithRelations } from "@/types"
+
+export async function generateMetadata(): Promise<Metadata> {
+  const hero = (await getHeroPost()) ?? (await getPublishedPosts({ limit: 1 }))[0] ?? null
+
+  if (hero) {
+    const description = cleanExcerpt(hero.excerpt) || DEFAULT_DESCRIPTION
+    return pageMetadata({
+      description,
+      path: "/",
+      og: {
+        title: hero.title,
+        description,
+        category: hero.category.name,
+        color: hero.category.color,
+        image: hero.cover_image_url,
+      },
+    })
+  }
+
+  return pageMetadata({
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: DEFAULT_DESCRIPTION,
+    path: "/",
+    og: { title: `${SITE_NAME} — ${SITE_TAGLINE}`, color: "#e63946" },
+  })
+}
 
 export default async function HomePage() {
   const [heroPost, recentForSidebar] = await Promise.all([

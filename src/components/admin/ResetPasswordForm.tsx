@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { Eye, EyeOff } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
+type OtpType = "invite" | "recovery" | "email" | "signup" | "email_change" | "magiclink"
+
 export function ResetPasswordForm() {
   const router = useRouter()
   const [password, setPassword] = useState("")
@@ -13,16 +15,78 @@ export function ResetPasswordForm() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [checking, setChecking] = useState(true)
   const [ready, setReady] = useState(false)
 
-  // Supabase sends the recovery token as a URL hash fragment.
-  // onAuthStateChange fires with event "PASSWORD_RECOVERY" once it's exchanged.
   useEffect(() => {
     const supabase = createClient()
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") setReady(true)
+    let mounted = true
+
+    async function establishSession() {
+      const url = new URL(window.location.href)
+      const code = url.searchParams.get("code")
+      const tokenHash = url.searchParams.get("token_hash")
+      const type = url.searchParams.get("type") as OtpType | null
+
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+        if (!mounted) return
+        if (exchangeError) {
+          setError(exchangeError.message)
+          setChecking(false)
+          return
+        }
+        window.history.replaceState({}, "", url.pathname)
+        setReady(true)
+        setChecking(false)
+        return
+      }
+
+      if (tokenHash && type) {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type,
+        })
+        if (!mounted) return
+        if (verifyError) {
+          setError(verifyError.message)
+          setChecking(false)
+          return
+        }
+        window.history.replaceState({}, "", url.pathname)
+        setReady(true)
+        setChecking(false)
+        return
+      }
+
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!mounted) return
+      if (session) {
+        setReady(true)
+        setChecking(false)
+        return
+      }
+
+      setChecking(false)
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (
+        session &&
+        (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "INITIAL_SESSION")
+      ) {
+        setReady(true)
+        setChecking(false)
+        setError("")
+      }
     })
-    return () => subscription.unsubscribe()
+
+    void establishSession()
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -32,9 +96,9 @@ export function ResetPasswordForm() {
     setError("")
     setLoading(true)
     const supabase = createClient()
-    const { error } = await supabase.auth.updateUser({ password })
+    const { error: updateError } = await supabase.auth.updateUser({ password })
     setLoading(false)
-    if (error) { setError(error.message); return }
+    if (updateError) { setError(updateError.message); return }
     router.push("/admin")
     router.refresh()
   }
@@ -45,11 +109,24 @@ export function ResetPasswordForm() {
     color: "var(--fg)",
   }
 
-  if (!ready) {
+  if (checking) {
     return (
       <p className="text-sm text-center py-4" style={{ color: "var(--fg-3)" }}>
         Verifying reset link…
       </p>
+    )
+  }
+
+  if (!ready) {
+    return (
+      <div className="space-y-3 text-center py-2">
+        <p className="text-sm" style={{ color: "var(--fg-2)" }}>
+          {error || "This link is invalid or has expired."}
+        </p>
+        <a href="/admin/login" className="text-sm text-[#e63946] hover:underline">
+          Back to sign in
+        </a>
+      </div>
     )
   }
 

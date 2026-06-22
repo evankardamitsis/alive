@@ -4,6 +4,7 @@ import Link from "next/link"
 import type { Metadata } from "next"
 import { getPostBySlug, getRelatedPosts, getAdjacentPosts, getAllPublishedSlugs } from "@/lib/supabase/queries"
 import { formatDate, estimateReadTime, cleanExcerpt } from "@/lib/utils"
+import { pageMetadata } from "@/lib/metadata"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { CategoryPill } from "@/components/article/ArticleCard"
 import { ReadingProgress } from "@/components/article/ReadingProgress"
@@ -22,35 +23,27 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug: rawSlug } = await params
+  const { category, slug: rawSlug } = await params
   const slug = decodeURIComponent(rawSlug)
   const post = await getPostBySlug(slug)
   if (!post) return {}
-  const ogParams = new URLSearchParams({
-    title: post.title,
-    category: post.category.name,
-    color: post.category.color ?? "#e63946",
-    ...(post.cover_image_url ? { image: post.cover_image_url } : {}),
-  })
-  const ogImage = `https://alivemag.gr/api/og?${ogParams}`
 
-  return {
+  const description = cleanExcerpt(post.excerpt) || undefined
+
+  return pageMetadata({
     title: post.title,
-    description: cleanExcerpt(post.excerpt) || undefined,
-    openGraph: {
+    description,
+    path: `/${category}/${slug}`,
+    type: "article",
+    publishedTime: post.published_at ?? undefined,
+    og: {
       title: post.title,
-      description: cleanExcerpt(post.excerpt) || undefined,
-      images: [{ url: ogImage, width: 1200, height: 630 }],
-      type: "article",
-      publishedTime: post.published_at ?? undefined,
+      description,
+      category: post.category.name,
+      color: post.category.color ?? "#e63946",
+      image: post.cover_image_url,
     },
-    twitter: {
-      card: "summary_large_image",
-      title: post.title,
-      description: cleanExcerpt(post.excerpt) || undefined,
-      images: [ogImage],
-    },
-  }
+  })
 }
 
 export default async function ArticlePage({ params }: Props) {

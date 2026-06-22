@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { getPublishedPosts, getAllCategories, getCategoryFeaturedPost } from "@/lib/supabase/queries"
 import { ArticleCard } from "@/components/article/ArticleCard"
+import { pageMetadata } from "@/lib/metadata"
 
 interface Props {
   params: Promise<{ category: string }>
@@ -17,14 +18,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const categories = await getAllCategories()
   const cat = categories.find((c) => c.slug === category)
   if (!cat) return {}
-  const ogParams = new URLSearchParams({ title: cat.name, color: cat.color ?? "#e63946" })
-  const ogImage = `https://alivemag.gr/api/og?${ogParams}`
-  return {
+  return pageMetadata({
     title: cat.name,
-    description: cat.description ?? undefined,
-    openGraph: { title: cat.name, images: [{ url: ogImage, width: 1200, height: 630 }] },
-    twitter: { card: "summary_large_image", images: [ogImage] },
-  }
+    description: cat.description ?? `Όλα τα άρθρα στην ενότητα ${cat.name} — Alive Magazine`,
+    path: `/${cat.slug}`,
+    og: {
+      title: cat.name,
+      description: cat.description ?? undefined,
+      color: cat.color ?? "#e63946",
+    },
+  })
 }
 
 export default async function CategoryPage({ params }: Props) {
