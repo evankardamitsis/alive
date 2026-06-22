@@ -53,9 +53,7 @@ export function Footer() {
             </h3>
             <ul className="space-y-2.5">
               {[
-                { label: "Instagram", href: "https://instagram.com/alivemag.gr" },
-                { label: "Facebook", href: "https://facebook.com/alivemag" },
-                { label: "YouTube", href: "https://youtube.com/@alivemag" },
+                { label: "Instagram", href: "https://www.instagram.com/alivemusicmag/" },
               ].map((l) => (
                 <li key={l.href}>
                   <a href={l.href} target="_blank" rel="noopener noreferrer" className="text-sm transition-opacity hover:opacity-50" style={{ color: "var(--fg-2)" }}>

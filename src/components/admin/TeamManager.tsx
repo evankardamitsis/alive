@@ -47,7 +47,15 @@ export function TeamManager({ initial }: Props) {
     setInviting(false)
     if (!res.ok) {
       const data = await res.json()
-      setError(data.error ?? "Something went wrong.")
+      const message = data.error ?? "Something went wrong."
+      if (/rate limit/i.test(message)) {
+        setError(
+          "Supabase email rate limit reached (usually clears within an hour). " +
+            "Use the CLI instead: pnpm exec tsx --env-file=.env.local scripts/create-admin.ts email@example.com yourpassword editor"
+        )
+      } else {
+        setError(message)
+      }
       return
     }
     const newMember = await res.json()
@@ -113,7 +121,8 @@ export function TeamManager({ initial }: Props) {
         </form>
         {error && <p className="text-xs text-red-500">{error}</p>}
         <p className="text-xs" style={{ color: "var(--fg-3)" }}>
-          They'll receive an email to set their password and access the admin panel.
+          They&apos;ll receive an email to set their password. If email is rate-limited, use{" "}
+          <code className="text-[11px]">scripts/create-admin.ts</code> from the project root instead.
         </p>
       </div>
 

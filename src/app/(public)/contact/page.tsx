@@ -11,9 +11,7 @@ export const metadata: Metadata = pageMetadata({
 })
 
 const SOCIAL = [
-  { label: "Instagram", href: "https://instagram.com/alivemag.gr" },
-  { label: "Facebook", href: "https://facebook.com/alivemag" },
-  { label: "YouTube", href: "https://youtube.com/@alivemag" },
+  { label: "Instagram", href: "https://www.instagram.com/alivemusicmag/" },
 ]
 
 export default function ContactPage() {
