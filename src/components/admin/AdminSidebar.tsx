@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
-import { LayoutDashboard, FileText, Image, Users, Tag, UsersRound, Menu, X } from "lucide-react"
+import { LayoutDashboard, FileText, Image, Users, Tag, UsersRound, Menu, X, ExternalLink } from "lucide-react"
 import { Logo } from "@/components/Logo"
 import { SignOutButton } from "@/components/admin/SignOutButton"
 
@@ -51,7 +51,17 @@ export function AdminSidebar() {
           )
         })}
       </nav>
-      <div className="p-2" style={{ borderTop: "1px solid var(--border)" }}>
+      <div className="p-2 space-y-0.5" style={{ borderTop: "1px solid var(--border)" }}>
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:opacity-80"
+          style={{ color: "var(--fg-2)" }}
+        >
+          <ExternalLink size={15} />
+          View site
+        </a>
         <SignOutButton />
       </div>
     </>
