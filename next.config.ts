@@ -24,6 +24,8 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://*.supabase.co https://fonts.gstatic.com",
       // Supabase API + auth
       `connect-src 'self' https://*.supabase.co wss://*.supabase.co`,
+      // WP article embeds (YouTube, etc.)
+      "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com https://youtube-nocookie.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
