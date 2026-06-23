@@ -11,7 +11,13 @@ export function DeletePostButton({ id }: { id: string }) {
   async function handleDelete() {
     if (!confirm("Delete this post? This cannot be undone.")) return
     setLoading(true)
-    await fetch(`/api/admin/posts/${id}`, { method: "DELETE" })
+    const res = await fetch(`/api/admin/posts/${id}`, { method: "DELETE" })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(data.error ?? "Failed to delete post.")
+      setLoading(false)
+      return
+    }
     router.refresh()
     setLoading(false)
   }

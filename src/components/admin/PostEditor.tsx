@@ -88,6 +88,7 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
   )
   const [readTime, setReadTime] = useState(initial?.read_time ?? 3)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [slugManual, setSlugManual] = useState(!!initial?.slug)
   const [mediaPicker, setMediaPicker] = useState(false)
   const [editorImagePicker, setEditorImagePicker] = useState(false)
@@ -129,8 +130,15 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (!editor) return
-    setSaving(true)
+    if (!categoryId) {
+      setSaveError("Choose a category before saving.")
+      return
+    }
 
+    setSaving(true)
+    setSaveError(null)
+
+    const scheduleDate = publishedAt ? new Date(publishedAt).toISOString() : null
     const body = {
       title,
       slug,
@@ -141,11 +149,10 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
       status,
       featured,
       is_hero: isHero,
-      category_id: categoryId || null,
-      published_at: status === "published" && !publishedAt
-        ? new Date().toISOString()
-        : publishedAt ? new Date(publishedAt).toISOString() : null,
-      read_time: readTime,
+      category_id: categoryId,
+      published_at: status === "published" ? scheduleDate : null,
+      scheduled_at: status === "scheduled" ? scheduleDate : null,
+      read_time_minutes: readTime,
     }
 
     const url = isNew ? "/api/admin/posts" : `/api/admin/posts/${initial!.id}`
@@ -159,13 +166,17 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
 
     setSaving(false)
 
-    if (res.ok && isNew) {
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setSaveError(data.error ?? "Failed to save post.")
+      return
+    }
+
+    if (isNew) {
       const data = await res.json()
       router.replace(`/admin/posts/${data.id}`)
-      router.refresh()
-    } else {
-      router.refresh()
     }
+    router.refresh()
   }
 
   if (!editor) return null
@@ -219,6 +230,12 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
           </button>
         </div>
       </div>
+
+      {saveError && (
+        <p className="mb-4 rounded-lg px-4 py-3 text-sm text-red-600" style={{ backgroundColor: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)" }}>
+          {saveError}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
         {/* Main editor */}

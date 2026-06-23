@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireAdminUser } from "@/lib/supabase/api-auth"
+import { normalizePostPayload } from "@/lib/supabase/post-payload"
 import { revalidatePath } from "next/cache"
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error: authError } = await requireAdminUser()
+  if (authError) return authError
+
   const { id } = await params
   const supabase = createAdminClient()
 
-  // Fetch slug + category before deleting so we can revalidate
   const { data: post } = await supabase
     .from("posts")
     .select("slug, category:categories(slug)")
@@ -30,22 +33,24 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error: authError } = await requireAdminUser()
+  if (authError) return authError
+
   const { id } = await params
   const body = await req.json()
+  const payload = normalizePostPayload(body)
   const supabase = createAdminClient()
 
-  // Enforce: only one featured post per category
-  if (body.featured === true && body.category_id) {
+  if (payload.featured === true && payload.category_id) {
     await supabase
       .from("posts")
       .update({ featured: false })
-      .eq("category_id", body.category_id)
+      .eq("category_id", payload.category_id)
       .eq("featured", true)
       .neq("id", id)
   }
 
-  // Enforce: only one hero post site-wide
-  if (body.is_hero === true) {
+  if (payload.is_hero === true) {
     await supabase
       .from("posts")
       .update({ is_hero: false })
@@ -55,7 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { data, error } = await supabase
     .from("posts")
-    .update({ ...body, updated_at: new Date().toISOString() })
+    .update({ ...payload, updated_at: new Date().toISOString() })
     .eq("id", id)
     .select("*, category:categories(slug)")
     .single()
