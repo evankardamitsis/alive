@@ -1,3 +1,5 @@
+import { toPostSlug } from "@/lib/slugify"
+
 type PostStatus = "draft" | "published" | "scheduled" | "archived"
 
 const ALLOWED_FIELDS = new Set([
@@ -37,6 +39,14 @@ export function normalizePostPayload(body: Record<string, unknown>) {
     payload.read_time_minutes = body.read_time
   }
 
+  const title = typeof body.title === "string" ? body.title : ""
+  const manualSlug = typeof body.slug === "string" ? body.slug : undefined
+  if (!payload.slug || (typeof payload.slug === "string" && !payload.slug.trim())) {
+    payload.slug = toPostSlug(title, manualSlug)
+  } else if (typeof payload.slug === "string") {
+    payload.slug = toPostSlug(title, payload.slug)
+  }
+
   if ("status" in body) {
     const status = body.status as PostStatus
     const scheduleDate =
@@ -45,11 +55,18 @@ export function normalizePostPayload(body: Record<string, unknown>) {
       parseDate(body.publish_date)
 
     if (status === "published") {
-      payload.published_at = scheduleDate ?? new Date().toISOString()
+      let publishedAt = scheduleDate ?? new Date().toISOString()
+      if (new Date(publishedAt) > new Date()) {
+        publishedAt = new Date().toISOString()
+      }
+      payload.published_at = publishedAt
       payload.scheduled_at = null
     } else if (status === "scheduled") {
       payload.scheduled_at = scheduleDate
       payload.published_at = null
+    } else if (status === "draft") {
+      payload.published_at = null
+      payload.scheduled_at = null
     }
   }
 

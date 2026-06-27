@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { ThemeProvider } from "@/components/ThemeProvider"
+import { AppToaster } from "@/components/AppToaster"
 import { inter, ibmPlex, urbanist } from "@/lib/fonts"
 import {
   DEFAULT_DESCRIPTION,
@@ -40,7 +41,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="el" className={`${inter.variable} ${ibmPlex.variable} ${urbanist.variable} h-full`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col antialiased" style={{ backgroundColor: "var(--bg)", color: "var(--fg)" }}>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <AppToaster />
+        </ThemeProvider>
       </body>
     </html>
   )

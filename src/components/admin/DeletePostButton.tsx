@@ -3,6 +3,7 @@
 import { Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { toast } from "sonner"
 
 export function DeletePostButton({ id }: { id: string }) {
   const router = useRouter()
@@ -14,10 +15,11 @@ export function DeletePostButton({ id }: { id: string }) {
     const res = await fetch(`/api/admin/posts/${id}`, { method: "DELETE" })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      alert(data.error ?? "Failed to delete post.")
+      toast.error(data.error ?? "Failed to delete post.")
       setLoading(false)
       return
     }
+    toast.success("Post deleted")
     router.refresh()
     setLoading(false)
   }

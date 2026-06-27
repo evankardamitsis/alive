@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { revalidatePath } from "next/cache"
+import { revalidatePublishedPost } from "@/lib/revalidate-posts"
 
 export async function GET(req: NextRequest) {
   // Verify this is called by Vercel Cron (or our own secret)
@@ -28,13 +28,9 @@ export async function GET(req: NextRequest) {
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
   // Revalidate affected pages
-  revalidatePath("/")
   for (const post of due) {
     const catSlug = Array.isArray(post.category) ? post.category[0]?.slug : (post.category as any)?.slug
-    if (catSlug) {
-      revalidatePath(`/${catSlug}`)
-      revalidatePath(`/${catSlug}/${post.slug}`)
-    }
+    revalidatePublishedPost({ categorySlug: catSlug, slug: post.slug })
   }
 
   return NextResponse.json({ published: due.length, ids: due.map((p) => p.id) })

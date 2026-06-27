@@ -4,6 +4,8 @@ import { getPublishedPosts, getAllCategories, getCategoryFeaturedPost } from "@/
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { pageMetadata } from "@/lib/metadata"
 
+export const revalidate = 60
+
 interface Props {
   params: Promise<{ category: string }>
 }

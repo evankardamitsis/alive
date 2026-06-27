@@ -43,7 +43,8 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
         featured: post.featured ?? false,
         is_hero: post.is_hero ?? false,
         category_id: post.category_id ?? "",
-        published_at: post.published_at ?? post.scheduled_at,
+        published_at: post.published_at,
+        scheduled_at: post.scheduled_at,
         read_time: post.read_time_minutes ?? 3,
       }}
     />

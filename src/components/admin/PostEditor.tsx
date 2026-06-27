@@ -7,12 +7,21 @@ import Placeholder from "@tiptap/extension-placeholder"
 import { ResizableImageExtension } from "@/components/admin/ResizableImage"
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   Bold, Italic, List, ListOrdered, Heading2, Heading3,
-  Link2, Image as ImageIcon, Quote, Code, Undo, Redo, Save, Eye, Upload, X
+  Link2, Image as ImageIcon, Quote, Code, Undo, Redo, Save, Eye, Upload, X, Send, Clock
 } from "lucide-react"
 import NextLink from "next/link"
 import { MediaPickerModal } from "@/components/admin/MediaPickerModal"
+import { toSlug } from "@/lib/slugify"
+import {
+  formatDateTime,
+  fromDateTimeLocalValue,
+  isFutureInSiteTimezone,
+  nowIso,
+  toDateTimeLocalValue,
+} from "@/lib/datetime"
 
 interface Category {
   id: string
@@ -34,6 +43,7 @@ interface PostData {
   is_hero: boolean
   category_id: string
   published_at: string | null
+  scheduled_at?: string | null
   read_time: number
 }
 
@@ -43,12 +53,24 @@ interface Props {
   currentHeroId?: string | null
 }
 
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
+type SaveAction = "save" | "publish" | "schedule"
+
+type SubmitOptions = {
+  status?: PostData["status"]
+}
+
+const STATUS_LABELS: Record<PostData["status"], string> = {
+  draft: "Draft",
+  published: "Published",
+  scheduled: "Scheduled",
+  archived: "Archived",
+}
+
+const STATUS_STYLES: Record<PostData["status"], string> = {
+  draft: "bg-neutral-500/15 text-neutral-500",
+  published: "bg-emerald-500/15 text-emerald-600",
+  scheduled: "bg-amber-500/15 text-amber-600",
+  archived: "bg-red-500/15 text-red-500",
 }
 
 function ToolbarButton({
@@ -84,11 +106,18 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
   const [isHero, setIsHero] = useState(initial?.is_hero ?? false)
   const [categoryId, setCategoryId] = useState(initial?.category_id ?? "")
   const [publishedAt, setPublishedAt] = useState(
-    initial?.published_at ? initial.published_at.slice(0, 16) : ""
+    initial?.published_at ? toDateTimeLocalValue(initial.published_at) : ""
+  )
+  const [scheduleEnabled, setScheduleEnabled] = useState(initial?.status === "scheduled")
+  const [scheduleAt, setScheduleAt] = useState(
+    initial?.scheduled_at
+      ? toDateTimeLocalValue(initial.scheduled_at)
+      : initial?.status === "scheduled" && initial?.published_at
+        ? toDateTimeLocalValue(initial.published_at)
+        : ""
   )
   const [readTime, setReadTime] = useState(initial?.read_time ?? 3)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const [busy, setBusy] = useState<SaveAction | null>(null)
   const [slugManual, setSlugManual] = useState(!!initial?.slug)
   const [mediaPicker, setMediaPicker] = useState(false)
   const [editorImagePicker, setEditorImagePicker] = useState(false)
@@ -110,7 +139,7 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
 
   const handleTitleChange = useCallback((val: string) => {
     setTitle(val)
-    if (!slugManual) setSlug(slugify(val))
+    if (!slugManual) setSlug(toSlug(val))
   }, [slugManual])
 
   const addLink = useCallback(() => {
@@ -127,31 +156,76 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
     setEditorImagePicker(true)
   }, [])
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault()
+  async function submitPost(action: SaveAction, options?: SubmitOptions) {
     if (!editor) return
     if (!categoryId) {
-      setSaveError("Choose a category before saving.")
+      toast.error("Choose a category before saving.")
       return
     }
+    if (!title.trim()) {
+      toast.error("Add a title before saving.")
+      return
+    }
+    if (action === "schedule") {
+      if (!scheduleAt) {
+        toast.error("Pick a date and time to schedule.")
+        return
+      }
+      if (!isFutureInSiteTimezone(scheduleAt)) {
+        toast.error("Scheduled time must be in the future.")
+        return
+      }
+    }
 
-    setSaving(true)
-    setSaveError(null)
+    setBusy(action)
 
-    const scheduleDate = publishedAt ? new Date(publishedAt).toISOString() : null
+    const resolvedSlug = slug.trim() ? toSlug(slug) || toSlug(title) : toSlug(title)
+    let nextStatus: PostData["status"] = options?.status ?? status
+    let nextPublishedAt: string | null = null
+    let nextScheduledAt: string | null = null
+
+    if (action === "publish") {
+      nextStatus = "published"
+      nextPublishedAt = nowIso()
+      nextScheduledAt = null
+    } else if (action === "schedule") {
+      nextStatus = "scheduled"
+      nextScheduledAt = fromDateTimeLocalValue(scheduleAt)
+      nextPublishedAt = null
+    } else {
+      if (options?.status) {
+        nextStatus = options.status
+      } else if (!initial?.id) {
+        nextStatus = "draft"
+      }
+
+      if (nextStatus === "draft") {
+        nextPublishedAt = null
+        nextScheduledAt = null
+      } else if (nextStatus === "published") {
+        nextPublishedAt = publishedAt
+          ? fromDateTimeLocalValue(publishedAt)
+          : initial?.published_at ?? nowIso()
+        nextScheduledAt = null
+      } else if (nextStatus === "scheduled") {
+        nextScheduledAt = scheduleAt ? fromDateTimeLocalValue(scheduleAt) : null
+        nextPublishedAt = null
+      }
+    }
+
     const body = {
-      title,
-      slug,
+      title: title.trim(),
+      slug: resolvedSlug,
       excerpt,
       content: editor.getHTML(),
       cover_image_url: coverUrl || null,
       cover_image_alt: coverAlt || null,
-      status,
+      status: nextStatus,
       featured,
       is_hero: isHero,
       category_id: categoryId,
-      published_at: status === "published" ? scheduleDate : null,
-      scheduled_at: status === "scheduled" ? scheduleDate : null,
+      published_at: nextPublishedAt,
+      scheduled_at: nextScheduledAt,
       read_time_minutes: readTime,
     }
 
@@ -164,20 +238,47 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
       body: JSON.stringify(body),
     })
 
-    setSaving(false)
+    setBusy(null)
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setSaveError(data.error ?? "Failed to save post.")
+      toast.error(data.error ?? "Failed to save post.")
       return
     }
 
+    const data = await res.json()
+    setStatus(data.status)
+    if (data.status === "published") {
+      setPublishedAt(data.published_at ? toDateTimeLocalValue(data.published_at) : "")
+      setScheduleEnabled(false)
+      setScheduleAt("")
+    } else if (data.status === "scheduled") {
+      setScheduleEnabled(true)
+      setScheduleAt(data.scheduled_at ? toDateTimeLocalValue(data.scheduled_at) : scheduleAt)
+    } else if (data.status === "draft") {
+      setScheduleEnabled(false)
+    }
+
+    if (action === "publish") {
+      toast.success(status === "published" ? "Post updated and live" : "Post published")
+    } else if (action === "schedule") {
+      toast.success("Post scheduled")
+    } else if (options?.status === "draft") {
+      toast.success("Moved to draft")
+    } else if (status === "published") {
+      toast.success("Post updated")
+    } else {
+      toast.success("Draft saved")
+    }
+
     if (isNew) {
-      const data = await res.json()
       router.replace(`/admin/posts/${data.id}`)
     }
     router.refresh()
   }
+
+  const isBusy = busy !== null
+  const saveLabel = status === "published" ? "Update" : "Save draft"
 
   if (!editor) return null
 
@@ -195,9 +296,9 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
         editor?.chain().focus().setImage({ src: url }).run()
       }}
     />
-    <form onSubmit={handleSave}>
+    <form onSubmit={(e) => e.preventDefault()}>
       {/* Top bar */}
-      <div className="flex items-center justify-between mb-6 gap-4">
+      <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           <NextLink
             href="/admin/posts"
@@ -207,8 +308,11 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
             ← Posts
           </NextLink>
           <h1 className="text-xl font-bold" style={{ color: "var(--fg)" }}>{isNew ? "New Post" : "Edit Post"}</h1>
+          <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_STYLES[status]}`}>
+            {STATUS_LABELS[status]}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {!isNew && (
             <NextLink
               href={`/admin/posts/${initial!.id}/preview`}
@@ -221,21 +325,26 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
             </NextLink>
           )}
           <button
-            type="submit"
-            disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[#e63946] hover:bg-[#c9303d] text-white transition-colors disabled:opacity-50"
+            type="button"
+            onClick={() => submitPost("save")}
+            disabled={isBusy}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+            style={{ color: "var(--fg)", border: "1px solid var(--border)", backgroundColor: "var(--bg-2)" }}
           >
             <Save size={14} />
-            {saving ? "Saving…" : "Save"}
+            {busy === "save" ? "Saving…" : saveLabel}
+          </button>
+          <button
+            type="button"
+            onClick={() => submitPost("publish")}
+            disabled={isBusy}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[#e63946] hover:bg-[#c9303d] text-white transition-colors disabled:opacity-50"
+          >
+            <Send size={14} />
+            {busy === "publish" ? "Publishing…" : status === "published" ? "Update & publish" : "Publish"}
           </button>
         </div>
       </div>
-
-      {saveError && (
-        <p className="mb-4 rounded-lg px-4 py-3 text-sm text-red-600" style={{ backgroundColor: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)" }}>
-          {saveError}
-        </p>
-      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
         {/* Main editor */}
@@ -252,16 +361,26 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
           />
 
           {/* Slug */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs shrink-0" style={{ color: "var(--fg-3)" }}>slug /</span>
             <input
               type="text"
               value={slug}
               onChange={(e) => { setSlugManual(true); setSlug(e.target.value) }}
-              placeholder="auto-generated"
-              className="text-xs bg-transparent outline-none flex-1"
+              placeholder="auto-generated from title"
+              className="text-xs bg-transparent outline-none flex-1 min-w-[12rem]"
               style={{ color: "var(--fg-2)" }}
             />
+            {slugManual && (
+              <button
+                type="button"
+                onClick={() => { setSlugManual(false); setSlug(toSlug(title)) }}
+                className="text-[11px] underline"
+                style={{ color: "var(--fg-3)" }}
+              >
+                Regenerate from title
+              </button>
+            )}
           </div>
 
           {/* Excerpt */}
@@ -339,32 +458,66 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
           >
             <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--fg-3)" }}>Publish</h3>
 
-            <div className="space-y-1">
-              <label className="text-xs" style={{ color: "var(--fg-2)" }}>Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as PostData["status"])}
-                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                style={{ backgroundColor: "var(--bg-3)", border: "1px solid var(--border)", color: "var(--fg)" }}
-              >
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-                <option value="scheduled">Scheduled</option>
-                <option value="archived">Archived</option>
-              </select>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--fg-3)" }}>
+              Use <strong style={{ color: "var(--fg-2)" }}>Publish</strong> to go live immediately.
+              Save as draft anytime without publishing.
+            </p>
+
+            {status === "published" && publishedAt && (
+              <p className="text-xs" style={{ color: "var(--fg-2)" }}>
+                Live since {formatDateTime(fromDateTimeLocalValue(publishedAt))}
+              </p>
+            )}
+
+            <div className="pt-1 space-y-3" style={{ borderTop: "1px solid var(--border)" }}>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={scheduleEnabled}
+                  onChange={(e) => setScheduleEnabled(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-sm" style={{ color: "var(--fg-2)" }}>Schedule for later</span>
+              </label>
+
+              {scheduleEnabled && (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-xs" style={{ color: "var(--fg-2)" }}>
+                      Publish on <span style={{ color: "var(--fg-3)" }}>(Athens)</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={scheduleAt}
+                      onChange={(e) => setScheduleAt(e.target.value)}
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                      style={{ backgroundColor: "var(--bg-3)", border: "1px solid var(--border)", color: "var(--fg)" }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => submitPost("schedule")}
+                    disabled={isBusy}
+                    className="flex w-full items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+                    style={{ color: "var(--fg)", border: "1px solid var(--border)", backgroundColor: "var(--bg-3)" }}
+                  >
+                    <Clock size={14} />
+                    {busy === "schedule" ? "Scheduling…" : "Schedule post"}
+                  </button>
+                </>
+              )}
             </div>
 
             {(status === "published" || status === "scheduled") && (
-              <div className="space-y-1">
-                <label className="text-xs" style={{ color: "var(--fg-2)" }}>Publish date</label>
-                <input
-                  type="datetime-local"
-                  value={publishedAt}
-                  onChange={(e) => setPublishedAt(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                  style={{ backgroundColor: "var(--bg-3)", border: "1px solid var(--border)", color: "var(--fg)" }}
-                />
-              </div>
+              <button
+                type="button"
+                onClick={() => submitPost("save", { status: "draft" })}
+                disabled={isBusy}
+                className="text-xs underline disabled:opacity-50"
+                style={{ color: "var(--fg-3)" }}
+              >
+                Move to draft
+              </button>
             )}
 
             {/* Featured */}

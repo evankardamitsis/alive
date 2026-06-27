@@ -6,6 +6,7 @@ import { Search, ArrowUpDown, ArrowUp, ArrowDown, Star, Home, ChevronLeft, Chevr
 import { DeletePostButton } from "@/components/admin/DeletePostButton"
 import { formatDate } from "@/lib/utils"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 interface Post {
   id: string
@@ -92,7 +93,11 @@ export function PostsTable({ posts: initialPosts, page, totalPages, total, featu
       ),
     })
     setBusy(null)
-    if (!res.ok) return
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error ?? "Failed to update post.")
+      return
+    }
 
     if (field === "featured") {
       setPosts((prev) =>
@@ -117,6 +122,9 @@ export function PostsTable({ posts: initialPosts, page, totalPages, total, featu
       )
       setHeroId(newVal ? post.id : null)
     }
+    toast.success(field === "featured"
+      ? (newVal ? "Set as category featured" : "Removed from featured")
+      : (newVal ? "Set as homepage hero" : "Removed from hero"))
     router.refresh()
   }, [router])
 

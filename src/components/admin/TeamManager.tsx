@@ -2,7 +2,9 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { UserPlus, Trash2, ChevronDown } from "lucide-react"
+import { SITE_LOCALE, SITE_TIMEZONE } from "@/lib/datetime"
 
 interface Member {
   id: string
@@ -23,7 +25,12 @@ const ROLE_STYLES = {
 
 function formatDate(iso: string | null) {
   if (!iso) return "Never"
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+  return new Intl.DateTimeFormat(SITE_LOCALE, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: SITE_TIMEZONE,
+  }).format(new Date(iso))
 }
 
 export function TeamManager({ initial }: Props) {
@@ -56,28 +63,42 @@ export function TeamManager({ initial }: Props) {
       } else {
         setError(message)
       }
+      toast.error(message)
       return
     }
     const newMember = await res.json()
     setMembers((prev) => [...prev, { ...newMember, created_at: new Date().toISOString(), last_sign_in_at: null }])
     setInviteEmail("")
     setSent(true)
+    toast.success(`Invite sent to ${inviteEmail}`)
     setTimeout(() => setSent(false), 4000)
   }
 
   async function handleRoleChange(id: string, role: "admin" | "editor") {
-    await fetch(`/api/admin/team/${id}`, {
+    const res = await fetch(`/api/admin/team/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role }),
     })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error ?? "Failed to update role")
+      return
+    }
     setMembers((prev) => prev.map((m) => m.id === id ? { ...m, role } : m))
+    toast.success("Role updated")
   }
 
   async function handleRevoke(id: string, email: string) {
     if (!confirm(`Remove ${email} from the team?`)) return
-    await fetch(`/api/admin/team/${id}`, { method: "DELETE" })
+    const res = await fetch(`/api/admin/team/${id}`, { method: "DELETE" })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error ?? "Failed to remove member")
+      return
+    }
     setMembers((prev) => prev.filter((m) => m.id !== id))
+    toast.success(`${email} removed from team`)
   }
 
   const inputStyle = {

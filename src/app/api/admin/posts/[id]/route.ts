@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireAdminUser } from "@/lib/supabase/api-auth"
 import { normalizePostPayload } from "@/lib/supabase/post-payload"
-import { revalidatePath } from "next/cache"
+import { revalidatePublishedPost } from "@/lib/revalidate-posts"
+
+function categorySlug(data: { category?: unknown }) {
+  const category = Array.isArray(data.category) ? data.category[0] : data.category
+  return (category as { slug?: string } | null)?.slug ?? null
+}
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error: authError } = await requireAdminUser()
@@ -20,14 +25,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { error } = await supabase.from("posts").delete().eq("id", id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  revalidatePath("/")
-  if (post?.category) {
-    const catSlug = Array.isArray(post.category) ? post.category[0]?.slug : (post.category as any)?.slug
-    if (catSlug) {
-      revalidatePath(`/${catSlug}`)
-      if (post.slug) revalidatePath(`/${catSlug}/${post.slug}`)
-    }
-  }
+  revalidatePublishedPost({
+    categorySlug: categorySlug(post ?? {}),
+    slug: post?.slug ?? null,
+  })
 
   return NextResponse.json({ ok: true })
 }
@@ -40,6 +41,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
   const payload = normalizePostPayload(body)
   const supabase = createAdminClient()
+
+  const { data: existing } = await supabase
+    .from("posts")
+    .select("slug, category:categories(slug)")
+    .eq("id", id)
+    .single()
 
   if (payload.featured === true && payload.category_id) {
     await supabase
@@ -66,12 +73,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  revalidatePath("/")
-  const catSlug = Array.isArray(data.category) ? data.category[0]?.slug : (data.category as any)?.slug
-  if (catSlug) {
-    revalidatePath(`/${catSlug}`)
-    revalidatePath(`/${catSlug}/${data.slug}`)
-  }
+  revalidatePublishedPost({
+    categorySlug: categorySlug(data),
+    slug: data.slug,
+    previousCategorySlug: categorySlug(existing ?? {}),
+    previousSlug: existing?.slug ?? null,
+  })
 
   return NextResponse.json(data)
 }

@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   Upload, Copy, Trash2, Check, Search, X,
   ChevronLeft, ChevronRight, Pencil,
@@ -64,17 +65,27 @@ export function MediaManager({ items, bucketBaseUrl, page, totalPages, total, se
 
   async function uploadFiles(files: FileList | File[]) {
     const arr = Array.from(files).filter((f) => f.type.startsWith("image/"))
-    if (!arr.length) return
+    if (!arr.length) {
+      toast.error("Only image files can be uploaded")
+      return
+    }
     setUploading(true)
+    let uploaded = 0
     for (const file of arr) {
       const ext = file.name.split(".").pop()
       const name = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const fd = new FormData()
       fd.append("file", file)
       fd.append("name", name)
-      await fetch("/api/admin/media", { method: "POST", body: fd })
+      const res = await fetch("/api/admin/media", { method: "POST", body: fd })
+      if (res.ok) uploaded++
     }
     setUploading(false)
+    if (uploaded === arr.length) {
+      toast.success(uploaded === 1 ? "Image uploaded" : `${uploaded} images uploaded`)
+    } else {
+      toast.error("Some uploads failed")
+    }
     router.push("/admin/media")
   }
 
@@ -87,14 +98,21 @@ export function MediaManager({ items, bucketBaseUrl, page, totalPages, total, se
   async function copyUrl(url: string) {
     await navigator.clipboard.writeText(url)
     setCopiedUrl(url)
+    toast.success("URL copied to clipboard")
     setTimeout(() => setCopiedUrl(null), 2000)
   }
 
   async function deleteFile(item: MediaItem) {
     if (!confirm(`Delete "${item.name}"?`)) return
-    await fetch(`/api/admin/media/${encodeURIComponent(item.path)}`, { method: "DELETE" })
+    const res = await fetch(`/api/admin/media/${encodeURIComponent(item.path)}`, { method: "DELETE" })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error ?? "Failed to delete image")
+      return
+    }
     setDeletedPaths((prev) => new Set([...prev, item.path]))
     if (preview?.path === item.path) setPreview(null)
+    toast.success("Image deleted")
   }
 
   function openPreview(item: MediaItem) {
@@ -124,12 +142,17 @@ export function MediaManager({ items, bucketBaseUrl, page, totalPages, total, se
     })
     const json = await res.json()
     setRenameSaving(false)
-    if (!res.ok) { setRenameError(json.error ?? "Failed to rename"); return }
+    if (!res.ok) {
+      setRenameError(json.error ?? "Failed to rename")
+      toast.error(json.error ?? "Failed to rename")
+      return
+    }
 
     const updated: MediaItem = { ...preview, name: newName, path: json.path, url: json.url }
     setLocalItems((prev) => prev.map((i) => i.path === preview.path ? updated : i))
     setPreview(updated)
     setRenaming(false)
+    toast.success("Image renamed")
   }
 
   function pageHref(p: number) {

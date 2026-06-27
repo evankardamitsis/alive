@@ -10,7 +10,7 @@ import { CategoryPill } from "@/components/article/ArticleCard"
 import { ReadingProgress } from "@/components/article/ReadingProgress"
 import { ShareButtons } from "@/components/article/ShareButtons"
 
-export const revalidate = false
+export const revalidate = 60
 export const dynamicParams = true
 
 export async function generateStaticParams() {

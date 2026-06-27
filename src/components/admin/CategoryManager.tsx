@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react"
 
 interface Category {
@@ -156,7 +157,11 @@ export function CategoryManager({ initial }: Props) {
       const created = await res.json()
       setCategories((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
       setCreating(false)
+      toast.success("Category created")
       router.refresh()
+    } else {
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error ?? "Failed to create category")
     }
   }
 
@@ -170,14 +175,24 @@ export function CategoryManager({ initial }: Props) {
       const updated = await res.json()
       setCategories((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
       setEditingId(null)
+      toast.success("Category updated")
       router.refresh()
+    } else {
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error ?? "Failed to update category")
     }
   }
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Delete category "${name}"? Posts in this category will lose their category.`)) return
-    await fetch(`/api/admin/categories/${id}`, { method: "DELETE" })
+    const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error ?? "Failed to delete category")
+      return
+    }
     setCategories((prev) => prev.filter((c) => c.id !== id))
+    toast.success("Category deleted")
     router.refresh()
   }
 

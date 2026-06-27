@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache"
+import { revalidatePublishedPost } from "@/lib/revalidate-posts"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
@@ -11,9 +11,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const { slug, categorySlug } = body as { slug: string; categorySlug: string }
 
-  revalidatePath(`/${categorySlug}/${slug}`)
-  revalidatePath(`/${categorySlug}`)
-  revalidatePath("/")
+  revalidatePublishedPost({ categorySlug, slug })
 
   return NextResponse.json({ revalidated: true, slug })
 }

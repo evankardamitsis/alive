@@ -1,5 +1,9 @@
+import { unstable_cache } from "next/cache"
 import { createPublicClient } from "./public"
+import { POSTS_CACHE_TAG } from "@/lib/revalidate-posts"
 import type { PostWithRelations, Category } from "@/types"
+
+const POST_SELECT = `*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`
 
 function withRelations(posts: PostWithRelations[] | null): PostWithRelations[] {
   return (posts ?? []).filter(
@@ -7,7 +11,25 @@ function withRelations(posts: PostWithRelations[] | null): PostWithRelations[] {
   )
 }
 
-export async function getPublishedPosts(options?: {
+function liveNow() {
+  return new Date().toISOString()
+}
+
+type LiveFilterableQuery<T> = {
+  not(column: "published_at", operator: "is", value: null): T
+  lte(column: "published_at", value: string): T
+}
+
+function applyLiveFilters<T extends LiveFilterableQuery<T>>(query: T): T {
+  return query.not("published_at", "is", null).lte("published_at", liveNow())
+}
+
+type TagJoinRow = {
+  slug?: string
+  tag?: { slug?: string } | null
+}
+
+async function fetchPublishedPosts(options?: {
   limit?: number
   offset?: number
   categorySlug?: string
@@ -28,12 +50,12 @@ export async function getPublishedPosts(options?: {
     if (!categoryId) return []
   }
 
-  let query = supabase
-    .from("posts")
-    .select(
-      `*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`
-    )
-    .eq("status", "published")
+  let query = applyLiveFilters(
+    supabase
+      .from("posts")
+      .select(POST_SELECT)
+      .eq("status", "published")
+  )
     .order("published_at", { ascending: false })
     .range(offset, offset + limit - 1)
 
@@ -46,46 +68,67 @@ export async function getPublishedPosts(options?: {
   return withRelations(data as PostWithRelations[])
 }
 
-export async function getCategorySpotlights(perCategory = 4) {
-  const categories = await getAllCategories()
-  const results = await Promise.all(
-    categories.map(async (cat) => {
-      const [featuredPost, recent] = await Promise.all([
-        getCategoryFeaturedPost(cat.slug),
-        getPublishedPosts({ categorySlug: cat.slug, limit: perCategory + 1 }),
-      ])
-      let posts: PostWithRelations[]
-      if (featuredPost) {
-        const rest = recent.filter((p) => p.id !== featuredPost.id).slice(0, perCategory - 1)
-        posts = [featuredPost, ...rest]
-      } else {
-        posts = recent.slice(0, perCategory)
-      }
-      return { category: cat, posts }
-    })
-  )
-  return results.filter((r) => r.posts.length > 0)
+export async function getPublishedPosts(options?: {
+  limit?: number
+  offset?: number
+  categorySlug?: string
+  featured?: boolean
+  excludeIds?: string[]
+}) {
+  return unstable_cache(
+    () => fetchPublishedPosts(options),
+    ["getPublishedPosts", JSON.stringify(options ?? {})],
+    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
+  )()
 }
 
-export async function getPostBySlug(slug: string) {
+export async function getCategorySpotlights(perCategory = 4) {
+  return unstable_cache(
+    async () => {
+      const categories = await getAllCategories()
+      const results = await Promise.all(
+        categories.map(async (cat) => {
+          const [featuredPost, recent] = await Promise.all([
+            fetchCategoryFeaturedPost(cat.slug),
+            fetchPublishedPosts({ categorySlug: cat.slug, limit: perCategory + 1 }),
+          ])
+          let posts: PostWithRelations[]
+          if (featuredPost) {
+            const rest = recent.filter((p) => p.id !== featuredPost.id).slice(0, perCategory - 1)
+            posts = [featuredPost, ...rest]
+          } else {
+            posts = recent.slice(0, perCategory)
+          }
+          return { category: cat, posts }
+        })
+      )
+      return results.filter((r) => r.posts.length > 0)
+    },
+    ["getCategorySpotlights", String(perCategory)],
+    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
+  )()
+}
+
+async function fetchPostBySlug(slug: string) {
   const supabase = createPublicClient()
 
-  // Try exact match first
-  let { data } = await supabase
-    .from("posts")
-    .select(`*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`)
-    .eq("slug", slug)
-    .eq("status", "published")
-    .maybeSingle()
+  let { data } = await applyLiveFilters(
+    supabase
+      .from("posts")
+      .select(POST_SELECT)
+      .eq("slug", slug)
+      .eq("status", "published")
+  ).maybeSingle()
 
-  // WP truncates long slugs — fall back to prefix match
   if (!data && slug.length > 60) {
     const prefix = slug.slice(0, 60)
-    const { data: fallback } = await supabase
-      .from("posts")
-      .select(`*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`)
-      .like("slug", `${prefix}%`)
-      .eq("status", "published")
+    const { data: fallback } = await applyLiveFilters(
+      supabase
+        .from("posts")
+        .select(POST_SELECT)
+        .like("slug", `${prefix}%`)
+        .eq("status", "published")
+    )
       .limit(1)
       .maybeSingle()
     data = fallback
@@ -95,6 +138,14 @@ export async function getPostBySlug(slug: string) {
   const post = data as PostWithRelations
   if (!post.category || !post.author) return null
   return post
+}
+
+export async function getPostBySlug(slug: string) {
+  return unstable_cache(
+    () => fetchPostBySlug(slug),
+    ["getPostBySlug", slug],
+    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
+  )()
 }
 
 export async function getAllCategories(): Promise<Category[]> {
@@ -112,13 +163,15 @@ export async function getFeaturedPosts(limit = 5) {
   return getPublishedPosts({ featured: true, limit })
 }
 
-export async function getHeroPost(): Promise<PostWithRelations | null> {
+async function fetchHeroPost(): Promise<PostWithRelations | null> {
   const supabase = createPublicClient()
-  const { data } = await supabase
-    .from("posts")
-    .select(`*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`)
-    .eq("status", "published")
-    .eq("is_hero", true)
+  const { data } = await applyLiveFilters(
+    supabase
+      .from("posts")
+      .select(POST_SELECT)
+      .eq("status", "published")
+      .eq("is_hero", true)
+  )
     .limit(1)
     .maybeSingle()
   if (!data) return null
@@ -126,7 +179,14 @@ export async function getHeroPost(): Promise<PostWithRelations | null> {
   return post.category && post.author ? post : null
 }
 
-export async function getCategoryFeaturedPost(categorySlug: string): Promise<PostWithRelations | null> {
+export async function getHeroPost(): Promise<PostWithRelations | null> {
+  return unstable_cache(fetchHeroPost, ["getHeroPost"], {
+    tags: [POSTS_CACHE_TAG],
+    revalidate: 60,
+  })()
+}
+
+async function fetchCategoryFeaturedPost(categorySlug: string): Promise<PostWithRelations | null> {
   const supabase = createPublicClient()
   const { data: category } = await supabase
     .from("categories")
@@ -135,12 +195,14 @@ export async function getCategoryFeaturedPost(categorySlug: string): Promise<Pos
     .maybeSingle()
   if (!category?.id) return null
 
-  const { data } = await supabase
-    .from("posts")
-    .select(`*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`)
-    .eq("status", "published")
-    .eq("category_id", category.id)
-    .eq("featured", true)
+  const { data } = await applyLiveFilters(
+    supabase
+      .from("posts")
+      .select(POST_SELECT)
+      .eq("status", "published")
+      .eq("category_id", category.id)
+      .eq("featured", true)
+  )
     .limit(1)
     .maybeSingle()
   if (!data) return null
@@ -148,26 +210,38 @@ export async function getCategoryFeaturedPost(categorySlug: string): Promise<Pos
   return post.category && post.author ? post : null
 }
 
+export async function getCategoryFeaturedPost(categorySlug: string): Promise<PostWithRelations | null> {
+  return unstable_cache(
+    () => fetchCategoryFeaturedPost(categorySlug),
+    ["getCategoryFeaturedPost", categorySlug],
+    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
+  )()
+}
+
 export async function getAdjacentPosts(post: PostWithRelations) {
   const supabase = createPublicClient()
   const date = post.published_at!
 
   const [{ data: prevData }, { data: nextData }] = await Promise.all([
-    supabase
-      .from("posts")
-      .select(`id, title, slug, cover_image_url, cover_image_alt, category:categories(*)`)
-      .eq("status", "published")
-      .eq("category_id", post.category_id)
-      .lt("published_at", date)
+    applyLiveFilters(
+      supabase
+        .from("posts")
+        .select(`id, title, slug, cover_image_url, cover_image_alt, category:categories(*)`)
+        .eq("status", "published")
+        .eq("category_id", post.category_id)
+        .lt("published_at", date)
+    )
       .order("published_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabase
-      .from("posts")
-      .select(`id, title, slug, cover_image_url, cover_image_alt, category:categories(*)`)
-      .eq("status", "published")
-      .eq("category_id", post.category_id)
-      .gt("published_at", date)
+    applyLiveFilters(
+      supabase
+        .from("posts")
+        .select(`id, title, slug, cover_image_url, cover_image_alt, category:categories(*)`)
+        .eq("status", "published")
+        .eq("category_id", post.category_id)
+        .gt("published_at", date)
+    )
       .order("published_at", { ascending: true })
       .limit(1)
       .maybeSingle(),
@@ -185,19 +259,31 @@ export async function getTagBySlug(slug: string) {
   return data as { id: string; name: string; slug: string } | null
 }
 
-export async function getPostsByTag(tagSlug: string, limit = 24) {
+async function fetchPostsByTag(tagSlug: string, limit = 24) {
   const supabase = createPublicClient()
   const tag = await getTagBySlug(tagSlug)
   if (!tag) return []
-  const { data, error } = await supabase
-    .from("posts")
-    .select(`*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`)
-    .eq("status", "published")
+  const { data, error } = await applyLiveFilters(
+    supabase
+      .from("posts")
+      .select(POST_SELECT)
+      .eq("status", "published")
+  )
     .order("published_at", { ascending: false })
     .limit(limit)
   if (error) throw error
   const posts = withRelations(data as PostWithRelations[])
-  return posts.filter((p) => p.tags?.some((t: any) => t.slug === tagSlug || t.tag?.slug === tagSlug))
+  return posts.filter((p) =>
+    p.tags?.some((t: TagJoinRow) => t.slug === tagSlug || t.tag?.slug === tagSlug)
+  )
+}
+
+export async function getPostsByTag(tagSlug: string, limit = 24) {
+  return unstable_cache(
+    () => fetchPostsByTag(tagSlug, limit),
+    ["getPostsByTag", tagSlug, String(limit)],
+    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
+  )()
 }
 
 export async function getAllTags() {
@@ -214,17 +300,23 @@ type PublishedSlug = {
   category: { slug: string }
 }
 
-export async function getAllPublishedSlugs(): Promise<PublishedSlug[]> {
+async function fetchAllPublishedSlugs(): Promise<PublishedSlug[]> {
   const supabase = createPublicClient()
-  const { data, error } = await supabase
-    .from("posts")
-    .select("slug, published_at, updated_at, category:categories(slug)")
-    .eq("status", "published")
-    .order("published_at", { ascending: false })
+  const { data, error } = await applyLiveFilters(
+    supabase
+      .from("posts")
+      .select("slug, published_at, updated_at, category:categories(slug)")
+      .eq("status", "published")
+  ).order("published_at", { ascending: false })
   if (error) throw error
 
   return (data ?? [])
-    .map((row) => {
+    .map((row: {
+      slug: string
+      published_at: string
+      updated_at: string
+      category: { slug: string } | { slug: string }[] | null
+    }) => {
       const category = Array.isArray(row.category) ? row.category[0] : row.category
       if (!category?.slug || !row.slug || !row.published_at || !row.updated_at) return null
       return {
@@ -234,32 +326,51 @@ export async function getAllPublishedSlugs(): Promise<PublishedSlug[]> {
         category: { slug: category.slug },
       }
     })
-    .filter((row): row is PublishedSlug => row !== null)
+    .filter((row: PublishedSlug | null): row is PublishedSlug => row !== null)
 }
 
-export async function searchPosts(query: string, limit = 24) {
+export async function getAllPublishedSlugs(): Promise<PublishedSlug[]> {
+  return unstable_cache(fetchAllPublishedSlugs, ["getAllPublishedSlugs"], {
+    tags: [POSTS_CACHE_TAG],
+    revalidate: 60,
+  })()
+}
+
+async function fetchSearchPosts(query: string, limit = 24) {
   if (!query.trim()) return []
   const supabase = createPublicClient()
   const term = `%${query.trim()}%`
-  const { data, error } = await supabase
-    .from("posts")
-    .select(`*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`)
-    .eq("status", "published")
-    .or(`title.ilike.${term},excerpt.ilike.${term}`)
+  const { data, error } = await applyLiveFilters(
+    supabase
+      .from("posts")
+      .select(POST_SELECT)
+      .eq("status", "published")
+      .or(`title.ilike.${term},excerpt.ilike.${term}`)
+  )
     .order("published_at", { ascending: false })
     .limit(limit)
   if (error) throw error
   return withRelations(data as PostWithRelations[])
 }
 
+export async function searchPosts(query: string, limit = 24) {
+  return unstable_cache(
+    () => fetchSearchPosts(query, limit),
+    ["searchPosts", query, String(limit)],
+    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
+  )()
+}
+
 export async function getRelatedPosts(post: PostWithRelations, limit = 4) {
   const supabase = createPublicClient()
-  const { data } = await supabase
-    .from("posts")
-    .select(`*, author:authors(*), category:categories(*)`)
-    .eq("status", "published")
-    .eq("category_id", post.category_id)
-    .neq("id", post.id)
+  const { data } = await applyLiveFilters(
+    supabase
+      .from("posts")
+      .select(`*, author:authors(*), category:categories(*)`)
+      .eq("status", "published")
+      .eq("category_id", post.category_id)
+      .neq("id", post.id)
+  )
     .order("published_at", { ascending: false })
     .limit(limit)
 

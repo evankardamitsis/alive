@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Eye, EyeOff } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { authRedirectPath } from "@/lib/site"
@@ -29,7 +30,8 @@ export function LoginForm() {
     setLoading(true)
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { setError(error.message); setLoading(false); return }
+    if (error) { setError(error.message); toast.error(error.message); setLoading(false); return }
+    toast.success("Signed in")
     router.push("/admin")
     router.refresh()
   }
@@ -43,7 +45,8 @@ export function LoginForm() {
       redirectTo: authRedirectPath("/reset-password"),
     })
     setLoading(false)
-    if (error) { setError(error.message); return }
+    if (error) { setError(error.message); toast.error(error.message); return }
+    toast.success("Reset link sent — check your email")
     setMode("forgot-sent")
   }
 

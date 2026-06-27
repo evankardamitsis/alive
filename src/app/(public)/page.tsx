@@ -13,6 +13,8 @@ import {
 } from "@/lib/metadata"
 import type { PostWithRelations } from "@/types"
 
+export const revalidate = 60
+
 export async function generateMetadata(): Promise<Metadata> {
   const hero = (await getHeroPost()) ?? (await getPublishedPosts({ limit: 1 }))[0] ?? null
 

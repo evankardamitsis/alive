@@ -1,16 +1,13 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { formatDate as formatDateAthens } from "@/lib/datetime"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatDate(date: string | Date, locale = "el-GR") {
-  return new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(date))
+export function formatDate(date: string | Date, locale?: string) {
+  return formatDateAthens(date, locale)
 }
 
 export function estimateReadTime(html: string): number {

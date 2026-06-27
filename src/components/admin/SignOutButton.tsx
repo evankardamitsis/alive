@@ -2,6 +2,7 @@
 
 import { LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 
 export function SignOutButton() {
@@ -10,6 +11,7 @@ export function SignOutButton() {
   async function handleSignOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
+    toast.success("Signed out")
     router.push("/admin/login")
     router.refresh()
   }

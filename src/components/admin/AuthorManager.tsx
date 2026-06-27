@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
 import { Plus, Pencil, Trash2, Check, X, ChevronDown, ChevronUp } from "lucide-react"
 
 interface Author {
@@ -111,12 +112,14 @@ export function AuthorManager({ initial }: { initial: Author[] }) {
     const json = await res.json()
     setSaving(false)
 
-    if (!res.ok) { setError(json.error ?? "Failed to save"); return }
+    if (!res.ok) { setError(json.error ?? "Failed to save"); toast.error(json.error ?? "Failed to save author"); return }
 
     if (editingId) {
       setAuthors((prev) => prev.map((a) => (a.id === editingId ? json : a)))
+      toast.success("Author updated")
     } else {
       setAuthors((prev) => [...prev, json].sort((a, b) => a.name.localeCompare(b.name)))
+      toast.success("Author created")
     }
     cancelForm()
   }
@@ -126,10 +129,11 @@ export function AuthorManager({ initial }: { initial: Author[] }) {
     const res = await fetch(`/api/admin/authors/${id}`, { method: "DELETE" })
     if (!res.ok) {
       const json = await res.json()
-      alert(json.error ?? "Failed to delete")
+      toast.error(json.error ?? "Failed to delete author")
       return
     }
     setAuthors((prev) => prev.filter((a) => a.id !== id))
+    toast.success("Author deleted")
   }
 
   const FormPanel = (

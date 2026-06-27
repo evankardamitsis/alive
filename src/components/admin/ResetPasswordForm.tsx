@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Eye, EyeOff } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
@@ -91,14 +92,15 @@ export function ResetPasswordForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (password !== confirm) { setError("Passwords don't match."); return }
-    if (password.length < 8) { setError("Password must be at least 8 characters."); return }
+    if (password !== confirm) { setError("Passwords don't match."); toast.error("Passwords don't match."); return }
+    if (password.length < 8) { setError("Password must be at least 8 characters."); toast.error("Password must be at least 8 characters."); return }
     setError("")
     setLoading(true)
     const supabase = createClient()
     const { error: updateError } = await supabase.auth.updateUser({ password })
     setLoading(false)
-    if (updateError) { setError(updateError.message); return }
+    if (updateError) { setError(updateError.message); toast.error(updateError.message); return }
+    toast.success("Password updated")
     router.push("/admin")
     router.refresh()
   }

@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireAdminUser } from "@/lib/supabase/api-auth"
 import { normalizePostPayload, resolveAuthorId } from "@/lib/supabase/post-payload"
-import { revalidatePath } from "next/cache"
+import { revalidatePublishedPost } from "@/lib/revalidate-posts"
+
+function categorySlug(data: { category?: unknown }) {
+  const category = Array.isArray(data.category) ? data.category[0] : data.category
+  return (category as { slug?: string } | null)?.slug ?? null
+}
 
 export async function POST(req: NextRequest) {
   const { user, error: authError } = await requireAdminUser()
@@ -51,9 +56,7 @@ export async function POST(req: NextRequest) {
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  revalidatePath("/")
-  const catSlug = Array.isArray(data.category) ? data.category[0]?.slug : (data.category as any)?.slug
-  if (catSlug) revalidatePath(`/${catSlug}`)
+  revalidatePublishedPost({ categorySlug: categorySlug(data), slug: data.slug })
 
   return NextResponse.json(data)
 }
