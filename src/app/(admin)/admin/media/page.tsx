@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { MediaManager } from "@/components/admin/MediaManager"
+import { sortMediaNewestFirst } from "@/lib/media-sort"
 
 export const revalidate = 0
 
@@ -12,7 +13,7 @@ async function listAll(
 ): Promise<{ name: string; path: string; size: number; created_at: string }[]> {
   const { data: files } = await supabase.storage
     .from("media")
-    .list(prefix, { limit: 1000, sortBy: { column: "created_at", order: "desc" } })
+    .list(prefix, { limit: 1000, sortBy: { column: "name", order: "desc" } })
 
   const results: { name: string; path: string; size: number; created_at: string }[] = []
   for (const f of files ?? []) {
@@ -37,13 +38,8 @@ export default async function MediaPage({
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1)
 
   const supabase = createAdminClient()
-  const [allFiles, { data: { publicUrl: baseUrl } }] = await Promise.all([
-    listAll(supabase, ""),
-    Promise.resolve(supabase.storage.from("media").getPublicUrl("")),
-  ])
-
-  // Sort newest first (already sorted per-folder, but merge needs a re-sort)
-  allFiles.sort((a, b) => b.created_at.localeCompare(a.created_at))
+  const allFiles = sortMediaNewestFirst(await listAll(supabase, ""))
+  const { data: { publicUrl: baseUrl } } = supabase.storage.from("media").getPublicUrl("")
 
   const filtered = query
     ? allFiles.filter((f) => f.name.toLowerCase().includes(query))

@@ -86,7 +86,7 @@ export function MediaManager({ items, bucketBaseUrl, page, totalPages, total, se
     } else {
       toast.error("Some uploads failed")
     }
-    router.push("/admin/media")
+    router.push("/admin/media?page=1")
   }
 
   const onDrop = useCallback((e: React.DragEvent) => {

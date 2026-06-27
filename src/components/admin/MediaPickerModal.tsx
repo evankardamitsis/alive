@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { X, Upload, Check, Search } from "lucide-react"
 import NextImage from "next/image"
+import { sortMediaNewestFirst } from "@/lib/media-sort"
 
 interface MediaItem {
   name: string
   url: string
+  created_at?: string
 }
 
 interface Props {
@@ -26,7 +28,10 @@ export function MediaPickerModal({ open, onClose, onSelect }: Props) {
   const load = useCallback(async () => {
     setLoading(true)
     const res = await fetch("/api/admin/media/list")
-    if (res.ok) setItems(await res.json())
+    if (res.ok) {
+      const data = (await res.json()) as MediaItem[]
+      setItems(sortMediaNewestFirst(data))
+    }
     setLoading(false)
   }, [])
 

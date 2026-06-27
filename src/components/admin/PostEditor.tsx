@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import NextLink from "next/link"
 import { MediaPickerModal } from "@/components/admin/MediaPickerModal"
+import { EditorLinkDialog } from "@/components/admin/EditorLinkDialog"
 import { toSlug } from "@/lib/slugify"
 import {
   formatDateTime,
@@ -121,12 +122,20 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
   const [slugManual, setSlugManual] = useState(!!initial?.slug)
   const [mediaPicker, setMediaPicker] = useState(false)
   const [editorImagePicker, setEditorImagePicker] = useState(false)
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false)
+  const [linkInitialUrl, setLinkInitialUrl] = useState("")
 
   const editor = useEditor({
     extensions: [
       StarterKit,
       ResizableImageExtension,
-      Link.configure({ openOnClick: false }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+      }),
       Placeholder.configure({ placeholder: "Write your article here…" }),
     ],
     content: initial?.content ?? "",
@@ -142,14 +151,34 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
     if (!slugManual) setSlug(toSlug(val))
   }, [slugManual])
 
-  const addLink = useCallback(() => {
-    const url = prompt("URL:")
-    if (!url || !editor) return
+  const openLinkDialog = useCallback(() => {
+    if (!editor) return
+    const current = editor.getAttributes("link").href as string | undefined
+    setLinkInitialUrl(current ?? "")
+    setLinkDialogOpen(true)
+  }, [editor])
+
+  const applyLink = useCallback((url: string, text?: string) => {
+    if (!editor) return
     if (editor.state.selection.empty) {
-      editor.chain().focus().insertContent(`<a href="${url}">${url}</a>`).run()
+      const label = text || url
+      editor
+        .chain()
+        .focus()
+        .insertContent(`<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`)
+        .run()
     } else {
-      editor.chain().focus().setLink({ href: url }).run()
+      editor
+        .chain()
+        .focus()
+        .extendMarkRange("link")
+        .setLink({ href: url, target: "_blank", rel: "noopener noreferrer" })
+        .run()
     }
+  }, [editor])
+
+  const removeLink = useCallback(() => {
+    editor?.chain().focus().extendMarkRange("link").unsetLink().run()
   }, [editor])
 
   const addImage = useCallback(() => {
@@ -296,6 +325,14 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
         editor?.chain().focus().setImage({ src: url }).run()
       }}
     />
+    <EditorLinkDialog
+      open={linkDialogOpen}
+      initialUrl={linkInitialUrl}
+      hasSelection={!!editor && !editor.state.selection.empty}
+      onClose={() => setLinkDialogOpen(false)}
+      onSubmit={applyLink}
+      onRemove={linkInitialUrl ? removeLink : undefined}
+    />
     <form onSubmit={(e) => e.preventDefault()}>
       {/* Top bar */}
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
@@ -425,7 +462,7 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
             <ToolbarButton onClick={() => editor.chain().focus().toggleCode().run()} active={editor.isActive("code")} title="Code">
               <Code size={15} />
             </ToolbarButton>
-            <ToolbarButton onClick={addLink} active={editor.isActive("link")} title="Link">
+            <ToolbarButton onClick={openLinkDialog} active={editor.isActive("link")} title="Link">
               <Link2 size={15} />
             </ToolbarButton>
             <ToolbarButton onClick={addImage} title="Image">
