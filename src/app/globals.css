@@ -57,7 +57,7 @@ body {
 .article-content p  { font-size: 1rem; line-height: 1.85; margin-bottom: 1.35rem; color: var(--fg-2); }
 .article-content a  { color: var(--color-red); text-decoration: underline; text-underline-offset: 3px; }
 .article-content blockquote { border-left: 3px solid var(--color-red); padding-left: 1.25rem; color: var(--fg-2); margin: 1.75rem 0; font-family: var(--font-display); font-size: 1.05rem; font-weight: 500; }
-.article-content img { border-radius: 4px; margin: 1.75rem 0; width: 100%; height: auto; }
+.article-content img { display: block; border-radius: 4px; margin: 1.75rem 0; width: 100%; max-width: 100%; height: auto; clear: both; float: none; }
 .article-content ul, .article-content ol { padding-left: 1.25rem; margin-bottom: 1.35rem; color: var(--fg-2); line-height: 1.8; font-size: 1rem; }
 .article-content pre { overflow-x: auto; border-radius: 8px; padding: 1rem; margin-bottom: 1.35rem; font-size: 0.85rem; }
 .article-content table { width: 100%; border-collapse: collapse; margin-bottom: 1.35rem; font-size: 0.9rem; display: block; overflow-x: auto; }
@@ -76,7 +76,8 @@ body {
 .prose-editor code { font-size: 0.85em; background: var(--bg-3); padding: 0.15em 0.35em; border-radius: 4px; }
 .prose-editor pre { background: var(--bg-3); padding: 1rem; border-radius: 8px; overflow-x: auto; margin-bottom: 1rem; }
 .prose-editor a { color: #e63946; text-decoration: underline; }
-.prose-editor img { max-width: 100%; border-radius: 8px; margin: 1rem 0; }
+.prose-editor img { display: block; width: 100%; max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; clear: both; float: none; }
+.prose-editor [data-node-view-wrapper] { display: block !important; width: 100% !important; clear: both !important; float: none !important; }
 .prose-editor .ProseMirror-focused { outline: none; }
 .prose-editor p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--fg-3); pointer-events: none; float: left; height: 0; }
 

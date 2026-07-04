@@ -4,6 +4,7 @@ import Link from "next/link"
 import type { Metadata } from "next"
 import { getPostBySlug, getRelatedPosts, getAdjacentPosts, getAllPublishedSlugs } from "@/lib/supabase/queries"
 import { formatDate, estimateReadTime, cleanExcerpt } from "@/lib/utils"
+import { normalizeArticleImages } from "@/lib/article-content"
 import { pageMetadata } from "@/lib/metadata"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { CategoryPill } from "@/components/article/ArticleCard"
@@ -146,7 +147,7 @@ export default async function ArticlePage({ params }: Props) {
           <div>
             <div
               className="article-content"
-              dangerouslySetInnerHTML={{ __html: post.content }}
+              dangerouslySetInnerHTML={{ __html: normalizeArticleImages(post.content) }}
             />
 
             {/* Tags */}

@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { notFound } from "next/navigation"
 import { formatDate, estimateReadTime, cleanExcerpt } from "@/lib/utils"
+import { normalizeArticleImages } from "@/lib/article-content"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -76,7 +77,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
         {/* Content */}
         <div
           className="article-content"
-          dangerouslySetInnerHTML={{ __html: post.content ?? "" }}
+          dangerouslySetInnerHTML={{ __html: normalizeArticleImages(post.content ?? "") }}
         />
       </div>
     </div>
