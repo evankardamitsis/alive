@@ -42,6 +42,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const payload = normalizePostPayload(body)
   const supabase = createAdminClient()
 
+  if (typeof body.author_id === "string" && body.author_id.trim()) {
+    const authorId = body.author_id.trim()
+    const { data: author } = await supabase
+      .from("authors")
+      .select("id")
+      .eq("id", authorId)
+      .maybeSingle()
+    if (!author) {
+      return NextResponse.json({ error: "Selected author was not found" }, { status: 400 })
+    }
+    payload.author_id = authorId
+  }
+
   const { data: existing } = await supabase
     .from("posts")
     .select("slug, category:categories(slug)")

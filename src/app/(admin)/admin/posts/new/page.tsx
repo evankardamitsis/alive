@@ -6,8 +6,9 @@ export const revalidate = 0
 export default async function NewPostPage() {
   const supabase = createAdminClient()
 
-  const [{ data: categories }, { data: featuredPosts }, { data: heroPosts }] = await Promise.all([
+  const [{ data: categories }, { data: authors }, { data: featuredPosts }, { data: heroPosts }] = await Promise.all([
     supabase.from("categories").select("id, name, color").order("name"),
+    supabase.from("authors").select("id, name, email").order("name"),
     supabase.from("posts").select("id, category_id").eq("featured", true),
     supabase.from("posts").select("id").eq("is_hero", true).limit(1),
   ])
@@ -25,6 +26,7 @@ export default async function NewPostPage() {
   return (
     <PostEditor
       categories={enrichedCategories}
+      authors={authors ?? []}
       currentHeroId={heroPosts?.[0]?.id ?? null}
     />
   )

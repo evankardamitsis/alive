@@ -8,9 +8,10 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
   const { id } = await params
   const supabase = createAdminClient()
 
-  const [{ data: post }, { data: categories }, { data: featuredPosts }, { data: heroPosts }] = await Promise.all([
+  const [{ data: post }, { data: categories }, { data: authors }, { data: featuredPosts }, { data: heroPosts }] = await Promise.all([
     supabase.from("posts").select("*").eq("id", id).single(),
     supabase.from("categories").select("id, name, color").order("name"),
+    supabase.from("authors").select("id, name, email").order("name"),
     supabase.from("posts").select("id, category_id").eq("featured", true),
     supabase.from("posts").select("id").eq("is_hero", true).limit(1),
   ])
@@ -30,6 +31,7 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
   return (
     <PostEditor
       categories={enrichedCategories}
+      authors={authors ?? []}
       currentHeroId={heroPosts?.[0]?.id ?? null}
       initial={{
         id: post.id,
@@ -42,6 +44,7 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
         status: post.status,
         featured: post.featured ?? false,
         is_hero: post.is_hero ?? false,
+        author_id: post.author_id ?? "",
         category_id: post.category_id ?? "",
         published_at: post.published_at,
         scheduled_at: post.scheduled_at,

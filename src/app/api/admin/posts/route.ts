@@ -21,10 +21,28 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createAdminClient()
-  const authorId = await resolveAuthorId(supabase, user!.email)
+
+  let authorId =
+    typeof body.author_id === "string" && body.author_id.trim()
+      ? body.author_id.trim()
+      : null
+
+  if (authorId) {
+    const { data: author } = await supabase
+      .from("authors")
+      .select("id")
+      .eq("id", authorId)
+      .maybeSingle()
+    if (!author) {
+      return NextResponse.json({ error: "Selected author was not found" }, { status: 400 })
+    }
+  } else {
+    authorId = await resolveAuthorId(supabase, user!.email)
+  }
+
   if (!authorId) {
     return NextResponse.json(
-      { error: "No author profile found. Create an author with your email in Admin → Authors first." },
+      { error: "Author is required. Choose an author or create one in Admin → Authors." },
       { status: 400 }
     )
   }

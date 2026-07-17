@@ -31,6 +31,12 @@ interface Category {
   featuredPostId?: string | null
 }
 
+interface AuthorOption {
+  id: string
+  name: string
+  email: string
+}
+
 interface PostData {
   id?: string
   title: string
@@ -42,6 +48,7 @@ interface PostData {
   status: "draft" | "published" | "scheduled" | "archived"
   featured: boolean
   is_hero: boolean
+  author_id: string
   category_id: string
   published_at: string | null
   scheduled_at?: string | null
@@ -50,6 +57,7 @@ interface PostData {
 
 interface Props {
   categories: Category[]
+  authors: AuthorOption[]
   initial?: Partial<PostData>
   currentHeroId?: string | null
 }
@@ -93,7 +101,7 @@ function ToolbarButton({
   )
 }
 
-export function PostEditor({ categories, initial, currentHeroId }: Props) {
+export function PostEditor({ categories, authors, initial, currentHeroId }: Props) {
   const router = useRouter()
   const isNew = !initial?.id
 
@@ -105,6 +113,7 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
   const [status, setStatus] = useState<PostData["status"]>(initial?.status ?? "draft")
   const [featured, setFeatured] = useState(initial?.featured ?? false)
   const [isHero, setIsHero] = useState(initial?.is_hero ?? false)
+  const [authorId, setAuthorId] = useState(initial?.author_id ?? authors[0]?.id ?? "")
   const [categoryId, setCategoryId] = useState(initial?.category_id ?? "")
   const [publishedAt, setPublishedAt] = useState(
     initial?.published_at ? toDateTimeLocalValue(initial.published_at) : ""
@@ -187,6 +196,10 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
 
   async function submitPost(action: SaveAction, options?: SubmitOptions) {
     if (!editor) return
+    if (!authorId) {
+      toast.error("Choose an author before saving.")
+      return
+    }
     if (!categoryId) {
       toast.error("Choose a category before saving.")
       return
@@ -252,6 +265,7 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
       status: nextStatus,
       featured,
       is_hero: isHero,
+      author_id: authorId,
       category_id: categoryId,
       published_at: nextPublishedAt,
       scheduled_at: nextScheduledAt,
@@ -596,6 +610,40 @@ export function PostEditor({ categories, initial, currentHeroId }: Props) {
                 </p>
               )}
             </div>
+          </div>
+
+          {/* Author */}
+          <div
+            className="rounded-xl p-4 space-y-3"
+            style={{ backgroundColor: "var(--bg-2)", border: "1px solid var(--border)" }}
+          >
+            <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--fg-3)" }}>Author</h3>
+            {authors.length === 0 ? (
+              <p className="text-xs" style={{ color: "var(--fg-3)" }}>
+                No authors yet. Create one in{" "}
+                <NextLink href="/admin/authors" className="underline" style={{ color: "var(--fg-2)" }}>
+                  Admin → Authors
+                </NextLink>
+                .
+              </p>
+            ) : (
+              <select
+                value={authorId}
+                onChange={(e) => setAuthorId(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                style={{
+                  backgroundColor: "var(--bg-3)",
+                  border: "1px solid var(--border)",
+                  color: "var(--fg)",
+                }}
+              >
+                {authors.map((author) => (
+                  <option key={author.id} value={author.id}>
+                    {author.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Category */}

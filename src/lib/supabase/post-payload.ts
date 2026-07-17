@@ -12,6 +12,7 @@ const ALLOWED_FIELDS = new Set([
   "status",
   "featured",
   "is_hero",
+  "author_id",
   "category_id",
   "published_at",
   "scheduled_at",
