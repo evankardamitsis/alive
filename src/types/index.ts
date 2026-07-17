@@ -11,6 +11,8 @@ export interface Author {
   email: string
   role: UserRole
   social_links: Record<string, string>
+  /** When true, author name/avatar appear on the public site */
+  show_on_site: boolean
   created_at: string
 }
 

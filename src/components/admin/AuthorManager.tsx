@@ -13,6 +13,7 @@ interface Author {
   email: string
   role: "admin" | "editor" | "contributor"
   social_links: Record<string, string>
+  show_on_site: boolean
   created_at: string
 }
 
@@ -34,6 +35,7 @@ function initForm(a?: Partial<Author>) {
     bio: a?.bio ?? "",
     avatar_url: a?.avatar_url ?? "",
     role: (a?.role ?? "contributor") as Author["role"],
+    show_on_site: a?.show_on_site ?? true,
     social_links: {
       twitter: a?.social_links?.twitter ?? "",
       instagram: a?.social_links?.instagram ?? "",
@@ -97,6 +99,7 @@ export function AuthorManager({ initial }: { initial: Author[] }) {
       bio: form.bio.trim() || null,
       avatar_url: form.avatar_url.trim() || null,
       role: form.role,
+      show_on_site: form.show_on_site,
       social_links: Object.fromEntries(
         Object.entries(form.social_links).filter(([, v]) => v.trim())
       ),
@@ -179,6 +182,19 @@ export function AuthorManager({ initial }: { initial: Author[] }) {
           >
             {ROLES.map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
           </select>
+        </Field>
+        <Field label="Show on site" className="sm:col-span-2">
+          <label className="flex items-center gap-3 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={form.show_on_site}
+              onChange={(e) => setField("show_on_site", e.target.checked)}
+              className="h-4 w-4 accent-[#e63946]"
+            />
+            <span className="text-sm" style={{ color: "var(--fg-2)" }}>
+              Display this author&apos;s name and avatar on articles and cards
+            </span>
+          </label>
         </Field>
         <Field label="Avatar URL" className="sm:col-span-2">
           <input
@@ -303,6 +319,15 @@ export function AuthorManager({ initial }: { initial: Author[] }) {
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${ROLE_STYLES[author.role]}`}>
                       {author.role}
                     </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        author.show_on_site
+                          ? "bg-emerald-500/15 text-emerald-600"
+                          : "bg-neutral-500/15 text-neutral-500"
+                      }`}
+                    >
+                      {author.show_on_site ? "Visible" : "Hidden"}
+                    </span>
                   </div>
                   <p className="text-xs truncate" style={{ color: "var(--fg-3)" }}>{author.email}</p>
                 </div>
@@ -345,6 +370,10 @@ export function AuthorManager({ initial }: { initial: Author[] }) {
                 {author.bio && <p className="pt-3 leading-relaxed">{author.bio}</p>}
                 <p className="pt-2">
                   <span style={{ color: "var(--fg-3)" }}>Slug: </span>{author.slug}
+                </p>
+                <p>
+                  <span style={{ color: "var(--fg-3)" }}>On site: </span>
+                  {author.show_on_site ? "Shown" : "Hidden"}
                 </p>
                 {Object.entries(author.social_links ?? {}).filter(([, v]) => v).map(([k, v]) => (
                   <p key={k}>

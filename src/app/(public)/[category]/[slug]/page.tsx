@@ -72,9 +72,10 @@ export default async function ArticlePage({ params }: Props) {
     image: post.cover_image_url
       ? { "@type": "ImageObject", url: post.cover_image_url }
       : undefined,
-    author: post.author
-      ? { "@type": "Person", name: post.author.name }
-      : undefined,
+    author:
+      post.author && post.author.show_on_site !== false
+        ? { "@type": "Person", name: post.author.name }
+        : undefined,
     publisher: {
       "@type": "Organization",
       name: "Alive Magazine",
@@ -113,9 +114,29 @@ export default async function ArticlePage({ params }: Props) {
             </div>
 
             <div className="mt-8 flex items-center justify-between flex-wrap gap-3" style={{ borderTop: "1px solid var(--border)", paddingTop: "1.5rem" }}>
-              <p className="text-xs" style={{ color: "var(--fg-3)" }}>
-                {formatDate(post.published_at!)} · {readTime} λεπτά ανάγνωση
-              </p>
+              {post.author.show_on_site !== false ? (
+                <div className="flex items-center gap-3">
+                  {post.author.avatar_url && (
+                    <Image
+                      src={post.author.avatar_url}
+                      alt={post.author.name}
+                      width={32}
+                      height={32}
+                      className="rounded-full shrink-0"
+                    />
+                  )}
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: "var(--fg)" }}>{post.author.name}</p>
+                    <p className="text-xs" style={{ color: "var(--fg-3)" }}>
+                      {formatDate(post.published_at!)} · {readTime} λεπτά ανάγνωση
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs" style={{ color: "var(--fg-3)" }}>
+                  {formatDate(post.published_at!)} · {readTime} λεπτά ανάγνωση
+                </p>
+              )}
               <ShareButtons title={post.title} url={postUrl} />
             </div>
           </div>
@@ -206,6 +227,32 @@ export default async function ArticlePage({ params }: Props) {
           {/* Sidebar */}
           <aside className="hidden xl:block">
             <div className="sticky top-6 space-y-8">
+
+              {/* Author */}
+              {post.author.show_on_site !== false && (
+                <div className="rounded-2xl p-5" style={{ backgroundColor: "var(--bg-2)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-4" style={{ color: "var(--fg-3)" }}>
+                    Συγγραφέας
+                  </p>
+                  <div className="flex items-center gap-3">
+                    {post.author.avatar_url && (
+                      <Image
+                        src={post.author.avatar_url}
+                        alt={post.author.name}
+                        width={44}
+                        height={44}
+                        className="rounded-full shrink-0"
+                      />
+                    )}
+                    <div>
+                      <p className="font-semibold text-sm" style={{ color: "var(--fg)" }}>{post.author.name}</p>
+                      {post.author.bio && (
+                        <p className="text-xs mt-1 line-clamp-3 leading-relaxed" style={{ color: "var(--fg-2)" }}>{post.author.bio}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Tags */}
               {post.tags && post.tags.length > 0 && (

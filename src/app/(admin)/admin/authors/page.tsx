@@ -7,7 +7,7 @@ export default async function AuthorsPage() {
   const supabase = createAdminClient()
   const { data: authors } = await supabase
     .from("authors")
-    .select("id, name, slug, bio, avatar_url, email, role, social_links, created_at")
+    .select("id, name, slug, bio, avatar_url, email, role, social_links, show_on_site, created_at")
     .order("name")
 
   return (

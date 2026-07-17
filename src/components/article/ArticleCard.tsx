@@ -71,6 +71,9 @@ export function ArticleCard({ post, variant = "default" }: ArticleCardProps) {
               </p>
             )}
             <p className="mt-3 text-xs text-white/60">
+              {post.author.show_on_site !== false && (
+                <>{post.author.name} · </>
+              )}
               {formatDate(post.published_at!)}
             </p>
           </div>
@@ -108,6 +111,9 @@ export function ArticleCard({ post, variant = "default" }: ArticleCardProps) {
         </p>
       )}
       <p className="mt-2 text-xs" style={{ color: "var(--fg-3)" }}>
+        {post.author.show_on_site !== false && (
+          <>{post.author.name} · </>
+        )}
         {formatDate(post.published_at!)}
       </p>
     </Link>
