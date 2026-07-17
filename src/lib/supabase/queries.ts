@@ -33,11 +33,12 @@ async function fetchPublishedPosts(options?: {
   limit?: number
   offset?: number
   categorySlug?: string
+  authorId?: string
   featured?: boolean
   excludeIds?: string[]
 }) {
   const supabase = createPublicClient()
-  const { limit = 12, offset = 0, categorySlug, featured, excludeIds } = options ?? {}
+  const { limit = 12, offset = 0, categorySlug, authorId, featured, excludeIds } = options ?? {}
 
   let categoryId: string | undefined
   if (categorySlug) {
@@ -60,6 +61,7 @@ async function fetchPublishedPosts(options?: {
     .range(offset, offset + limit - 1)
 
   if (categoryId) query = query.eq("category_id", categoryId)
+  if (authorId) query = query.eq("author_id", authorId)
   if (featured !== undefined) query = query.eq("featured", featured)
   if (excludeIds && excludeIds.length > 0) query = query.not("id", "in", `(${excludeIds.join(",")})`)
 
@@ -72,6 +74,7 @@ export async function getPublishedPosts(options?: {
   limit?: number
   offset?: number
   categorySlug?: string
+  authorId?: string
   featured?: boolean
   excludeIds?: string[]
 }) {
@@ -291,6 +294,52 @@ export async function getAllTags() {
   const { data, error } = await supabase.from("tags").select("*").order("name")
   if (error) throw error
   return data as { id: string; name: string; slug: string }[]
+}
+
+export async function getAuthorBySlug(slug: string) {
+  return unstable_cache(
+    async () => {
+      const supabase = createPublicClient()
+      const { data } = await supabase
+        .from("authors")
+        .select("id, name, slug, bio, avatar_url, social_links, show_on_site")
+        .eq("slug", slug)
+        .eq("show_on_site", true)
+        .maybeSingle()
+      return data as {
+        id: string
+        name: string
+        slug: string
+        bio: string | null
+        avatar_url: string | null
+        social_links: Record<string, string>
+        show_on_site: boolean
+      } | null
+    },
+    ["getAuthorBySlug", slug],
+    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
+  )()
+}
+
+export async function getPostsByAuthor(authorId: string, limit = 24) {
+  return getPublishedPosts({ authorId, limit })
+}
+
+export async function getPublicAuthors() {
+  return unstable_cache(
+    async () => {
+      const supabase = createPublicClient()
+      const { data, error } = await supabase
+        .from("authors")
+        .select("id, name, slug")
+        .eq("show_on_site", true)
+        .order("name")
+      if (error) throw error
+      return (data ?? []) as { id: string; name: string; slug: string }[]
+    },
+    ["getPublicAuthors"],
+    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
+  )()
 }
 
 type PublishedSlug = {

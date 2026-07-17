@@ -111,26 +111,35 @@ export default async function ArticlePage({ params }: Props) {
               >
                 {post.title}
               </h1>
+              {excerpt && (
+                <p className="mt-4 text-base md:text-lg leading-relaxed" style={{ color: "var(--fg-2)" }}>
+                  {excerpt}
+                </p>
+              )}
             </div>
 
             <div className="mt-8 flex items-center justify-between flex-wrap gap-3" style={{ borderTop: "1px solid var(--border)", paddingTop: "1.5rem" }}>
               {post.author.show_on_site !== false ? (
                 <div className="flex items-center gap-3">
-                  {post.author.avatar_url && (
-                    <Image
-                      src={post.author.avatar_url}
-                      alt={post.author.name}
-                      width={32}
-                      height={32}
-                      className="rounded-full shrink-0"
-                    />
-                  )}
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: "var(--fg)" }}>{post.author.name}</p>
-                    <p className="text-xs" style={{ color: "var(--fg-3)" }}>
-                      {formatDate(post.published_at!)} · {readTime} λεπτά ανάγνωση
-                    </p>
-                  </div>
+                  <Link href={`/author/${post.author.slug}`} className="flex items-center gap-3 group">
+                    {post.author.avatar_url && (
+                      <Image
+                        src={post.author.avatar_url}
+                        alt={post.author.name}
+                        width={32}
+                        height={32}
+                        className="rounded-full shrink-0"
+                      />
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold group-hover:underline underline-offset-2" style={{ color: "var(--fg)" }}>
+                        {post.author.name}
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--fg-3)" }}>
+                        {formatDate(post.published_at!)} · {readTime} λεπτά ανάγνωση
+                      </p>
+                    </div>
+                  </Link>
                 </div>
               ) : (
                 <p className="text-xs" style={{ color: "var(--fg-3)" }}>
@@ -230,7 +239,11 @@ export default async function ArticlePage({ params }: Props) {
 
               {/* Author */}
               {post.author.show_on_site !== false && (
-                <div className="rounded-2xl p-5" style={{ backgroundColor: "var(--bg-2)" }}>
+                <Link
+                  href={`/author/${post.author.slug}`}
+                  className="rounded-2xl p-5 block transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: "var(--bg-2)" }}
+                >
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-4" style={{ color: "var(--fg-3)" }}>
                     Συγγραφέας
                   </p>
@@ -245,13 +258,17 @@ export default async function ArticlePage({ params }: Props) {
                       />
                     )}
                     <div>
-                      <p className="font-semibold text-sm" style={{ color: "var(--fg)" }}>{post.author.name}</p>
+                      <p className="font-semibold text-sm underline-offset-2 hover:underline" style={{ color: "var(--fg)" }}>
+                        {post.author.name}
+                      </p>
                       {post.author.bio && (
-                        <p className="text-xs mt-1 line-clamp-3 leading-relaxed" style={{ color: "var(--fg-2)" }}>{post.author.bio}</p>
+                        <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--fg-2)" }}>
+                          {post.author.bio}
+                        </p>
                       )}
                     </div>
                   </div>
-                </div>
+                </Link>
               )}
 
               {/* Tags */}

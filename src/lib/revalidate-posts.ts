@@ -14,6 +14,7 @@ export function revalidatePublishedPost(options?: {
   revalidatePath("/", "layout")
   revalidatePath("/feed.xml")
   revalidatePath("/sitemap.xml")
+  revalidatePath("/author", "layout")
 
   const slugs = new Set<string>()
   if (options?.categorySlug) slugs.add(options.categorySlug)

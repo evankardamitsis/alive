@@ -1,13 +1,14 @@
 import type { MetadataRoute } from "next"
-import { getAllCategories, getAllTags, getAllPublishedSlugs } from "@/lib/supabase/queries"
+import { getAllCategories, getAllTags, getAllPublishedSlugs, getPublicAuthors } from "@/lib/supabase/queries"
 
 const BASE = "https://alivemag.gr"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [slugs, categories, tags] = await Promise.all([
+  const [slugs, categories, tags, authors] = await Promise.all([
     getAllPublishedSlugs(),
     getAllCategories(),
     getAllTags(),
+    getPublicAuthors(),
   ])
 
   const posts: MetadataRoute.Sitemap = slugs.map((p) => ({
@@ -29,6 +30,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }))
 
+  const authorPages: MetadataRoute.Sitemap = authors.map((a) => ({
+    url: `${BASE}/author/${a.slug}`,
+    changeFrequency: "weekly",
+    priority: 0.6,
+  }))
+
   return [
     { url: BASE, changeFrequency: "daily", priority: 1 },
     { url: `${BASE}/search`, changeFrequency: "monthly", priority: 0.3 },
@@ -36,6 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     ...cats,
     ...tagPages,
+    ...authorPages,
     ...posts,
   ]
 }
