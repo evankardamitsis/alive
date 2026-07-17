@@ -112,7 +112,14 @@ export default async function ArticlePage({ params }: Props) {
                 {post.title}
               </h1>
               {excerpt && (
-                <p className="mt-4 text-base md:text-lg leading-relaxed" style={{ color: "var(--fg-2)" }}>
+                <p
+                  className="mt-5 text-[1.05rem] md:text-xl xl:text-[1.35rem] leading-[1.55] font-medium tracking-[-0.01em]"
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    color: "var(--fg-2)",
+                    maxWidth: "36em",
+                  }}
+                >
                   {excerpt}
                 </p>
               )}

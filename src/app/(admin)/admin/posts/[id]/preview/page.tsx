@@ -69,7 +69,10 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
 
         {/* Excerpt */}
         {excerpt && (
-          <p className="text-lg leading-relaxed mb-8 italic" style={{ color: "var(--fg-2)" }}>
+          <p
+            className="text-xl leading-[1.55] font-medium tracking-[-0.01em] mb-8"
+            style={{ fontFamily: "var(--font-display)", color: "var(--fg-2)", maxWidth: "36em" }}
+          >
             {excerpt}
           </p>
         )}

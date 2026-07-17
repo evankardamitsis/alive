@@ -76,7 +76,7 @@ export default async function AuthorPage({ params }: Props) {
               </div>
             )}
 
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h1
                 className="text-3xl sm:text-4xl xl:text-5xl font-black tracking-tight"
                 style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
@@ -85,14 +85,14 @@ export default async function AuthorPage({ params }: Props) {
               </h1>
               {author.bio && (
                 <p
-                  className="mt-3 text-base sm:text-lg leading-relaxed max-w-2xl"
+                  className="mt-4 text-base sm:text-lg xl:text-xl leading-[1.7] max-w-none xl:max-w-4xl"
                   style={{ color: "var(--fg-2)" }}
                 >
                   {author.bio}
                 </p>
               )}
               <p
-                className="mt-4 text-xs font-medium uppercase tracking-widest"
+                className="mt-5 text-xs font-medium uppercase tracking-widest"
                 style={{ color: "var(--fg-3)" }}
               >
                 {posts.length} {posts.length === 1 ? "άρθρο" : "άρθρα"}
