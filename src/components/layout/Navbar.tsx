@@ -89,6 +89,14 @@ export function Navbar() {
                 </Link>
               )
             })}
+
+            <Link
+              href="/for-artists"
+              className="ml-auto shrink-0 rounded-full px-4 py-2 font-bold tracking-tight text-white transition-opacity hover:opacity-90"
+              style={{ fontSize: "0.9rem", backgroundColor: "#e63946" }}
+            >
+              For Artists
+            </Link>
           </nav>
 
           {/* Actions */}
@@ -195,6 +203,30 @@ export function Navbar() {
               </Link>
             )
           })}
+
+          <Link
+            href="/for-artists"
+            onClick={() => setOpen(false)}
+            className="group flex items-center gap-4 py-3"
+            style={{
+              opacity: open ? 1 : 0,
+              transform: open ? "translateY(0)" : "translateY(12px)",
+              transition: `opacity 0.35s ease ${0.05 + NAV_LINKS.length * 0.05}s, transform 0.35s ease ${0.05 + NAV_LINKS.length * 0.05}s`,
+              borderBottom: "1px solid var(--border)",
+            }}
+          >
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "#e63946" }} />
+            <span
+              className="font-black tracking-tight leading-none"
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "clamp(2rem, 8vw, 3.5rem)",
+                color: "#e63946",
+              }}
+            >
+              For Artists
+            </span>
+          </Link>
         </nav>
 
         {/* Bottom bar */}
