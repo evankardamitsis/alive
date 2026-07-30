@@ -85,7 +85,7 @@ type Artist = {
 }
 
 const ARTISTS: Artist[] = [
-  { name: "Δήμητρα Γαλάνη", src: "/artists/galani.png", href: "https://open.spotify.com/artist/3nV0kq59WJOJRLNWpFR1m6" },
+  { name: "Δήμητρα Γαλάνη", src: "/artists/galani.jpg", href: "https://open.spotify.com/artist/3nV0kq59WJOJRLNWpFR1m6" },
   { name: "Guppy Fish", src: "/artists/guppy.jpeg", href: "https://open.spotify.com/artist/4sqss5faBke1GEY2IROHbO" },
   { name: "Erasmia Markidi", src: "/artists/erasmia.jpg", href: "https://open.spotify.com/artist/6yGCwFJ7PT2kBpIJoyv5nc" },
   { name: "Στέλιος Τσουκιάς", src: "/artists/stelios.jpg", href: "https://open.spotify.com/artist/19vBSkSuxHbDVdxcGTgZDW" },
