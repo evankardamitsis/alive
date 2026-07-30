@@ -1,13 +1,12 @@
 import type { Metadata } from "next"
 import Image from "next/image"
-import Link from "next/link"
 import { Check, ArrowUpRight, Plus } from "lucide-react"
 import { pageMetadata } from "@/lib/metadata"
 
 export const metadata: Metadata = pageMetadata({
   title: "Alive for Artists",
   description:
-    "Το Alive είναι το hub που στηρίζει νέους καλλιτέχνες μέσα από στοχευμένες υπηρεσίες προβολής — για κάθε νέο release ή live.",
+    "Το Alive είναι το hub που στηρίζει ανεξάρτητους καλλιτέχνες μέσα από στοχευμένες υπηρεσίες προβολής — για κάθε νέο release ή live.",
   path: "/for-artists",
   og: { title: "Alive for Artists", color: "#e63946" },
 })
@@ -218,7 +217,7 @@ export default function ForArtistsPage() {
               className="text-4xl sm:text-5xl md:text-6xl font-black leading-[1.02] tracking-tight"
               style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
             >
-              Στηρίζουμε νέους καλλιτέχνες
+              Στηρίζουμε ανεξάρτητους καλλιτέχνες
               <span style={{ color: ACCENT }}>.</span>
             </h1>
 
@@ -226,7 +225,7 @@ export default function ForArtistsPage() {
               className="mt-6 text-lg leading-relaxed"
               style={{ color: "var(--fg-2)" }}
             >
-              Το Alive είναι το hub που στηρίζει νέους καλλιτέχνες μέσα από στοχευμένες
+              Το Alive είναι το hub που στηρίζει ανεξάρτητους καλλιτέχνες μέσα από στοχευμένες
               υπηρεσίες προβολής, βοηθώντας τη μουσική και τη φωνή τους να φτάσουν στο κοινό
               που τους ταιριάζει.
             </p>
@@ -248,7 +247,7 @@ export default function ForArtistsPage() {
                 className="inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold uppercase tracking-[0.12em] transition-colors"
                 style={{ border: "1px solid var(--border)", color: "var(--fg)" }}
               >
-                Ποιοι είμαστε
+                Η ιστορία μας
               </a>
             </div>
           </div>
@@ -417,7 +416,7 @@ export default function ForArtistsPage() {
                 className="mb-5 text-xs font-bold uppercase tracking-[0.2em]"
                 style={{ color: ACCENT }}
               >
-                Who we are
+                Η ιστορία μας
               </p>
               <blockquote
                 className="text-xl leading-relaxed sm:text-2xl"
@@ -474,16 +473,18 @@ export default function ForArtistsPage() {
               className="mx-auto mt-4 max-w-xl text-base"
               style={{ color: "color-mix(in srgb, var(--bg) 70%, transparent)" }}
             >
-              Γίνε μέρος της κοινότητας που φέρνει τη νέα ελληνική μουσική μπροστά.
+              Γίνε μέρος της κοινότητας που φέρνει τη νέα μουσική μπροστά.
             </p>
-            <Link
-              href="/"
+            <a
+              href="https://www.instagram.com/alivemusicmag/"
+              target="_blank"
+              rel="noopener noreferrer"
               className="mt-9 inline-flex items-center gap-2 rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.14em] transition-opacity hover:opacity-90"
               style={{ backgroundColor: ACCENT, color: "#fff" }}
             >
               Join the Alive community
               <ArrowUpRight size={17} strokeWidth={2.5} />
-            </Link>
+            </a>
           </div>
         </div>
       </section>
