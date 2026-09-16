@@ -10,6 +10,7 @@ export const metadata: Metadata = pageMetadata({
   description: "Αναζήτηση άρθρων στο Alive Magazine",
   path: "/search",
   og: { title: "Search — Alive Magazine", color: "#e63946" },
+  index: false,
 })
 
 interface Props {

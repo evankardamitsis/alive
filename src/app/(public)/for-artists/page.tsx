@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import { Check, ArrowUpRight, Plus } from "lucide-react"
 import { pageMetadata } from "@/lib/metadata"
+import { JsonLd } from "@/components/JsonLd"
+import { getSiteUrl, siteUrl } from "@/lib/site"
 
 export const metadata: Metadata = pageMetadata({
   title: "Alive for Artists",
@@ -63,18 +65,32 @@ const LIVE_PACKAGES: Pkg[] = [
     featured: true,
     baseNote: "Ό,τι περιλαμβάνει το Standard, συν:",
     subject: "Live / Premium",
-    items: [
-      "Συνέντευξη στο alivemag.gr + featured content στη homepage για μία εβδομάδα",
-    ],
+    items: ["Συνέντευξη στο alivemag.gr + featured content στη homepage για μία εβδομάδα"],
   },
 ]
 
 const COLLABORATORS = [
   { name: "Zuma", src: "/collaborators/zuma.png", href: "https://zumacom.gr/" },
-  { name: "Formiggart", src: "/collaborators/formiggart.png", href: "https://formiggart.gr/" },
-  { name: "Greece On Tour", src: "/collaborators/greece-on-tour.png", href: "https://www.greece-on-tour.eu/en-gb" },
-  { name: "Rockwave", src: "/collaborators/rockwave.png", href: "https://rockwave.gr/" },
-  { name: "Xlalala", src: "/collaborators/xlalala.png", href: "https://www.xlalala.gr/" },
+  {
+    name: "Formiggart",
+    src: "/collaborators/formiggart.png",
+    href: "https://formiggart.gr/",
+  },
+  {
+    name: "Greece On Tour",
+    src: "/collaborators/greece-on-tour.png",
+    href: "https://www.greece-on-tour.eu/en-gb",
+  },
+  {
+    name: "Rockwave",
+    src: "/collaborators/rockwave.png",
+    href: "https://rockwave.gr/",
+  },
+  {
+    name: "Xlalala",
+    src: "/collaborators/xlalala.png",
+    href: "https://www.xlalala.gr/",
+  },
 ]
 
 type Artist = {
@@ -84,10 +100,26 @@ type Artist = {
 }
 
 const ARTISTS: Artist[] = [
-  { name: "Δήμητρα Γαλάνη", src: "/artists/galani.jpg", href: "https://open.spotify.com/artist/3nV0kq59WJOJRLNWpFR1m6" },
-  { name: "Guppy Fish", src: "/artists/guppy.jpeg", href: "https://open.spotify.com/artist/4sqss5faBke1GEY2IROHbO" },
-  { name: "Erasmia Markidi", src: "/artists/erasmia.jpg", href: "https://open.spotify.com/artist/6yGCwFJ7PT2kBpIJoyv5nc" },
-  { name: "Στέλιος Τσουκιάς", src: "/artists/stelios.jpg", href: "https://open.spotify.com/artist/19vBSkSuxHbDVdxcGTgZDW" },
+  {
+    name: "Δήμητρα Γαλάνη",
+    src: "/artists/galani.jpg",
+    href: "https://open.spotify.com/artist/3nV0kq59WJOJRLNWpFR1m6",
+  },
+  {
+    name: "Guppy Fish",
+    src: "/artists/guppy.jpeg",
+    href: "https://open.spotify.com/artist/4sqss5faBke1GEY2IROHbO",
+  },
+  {
+    name: "Erasmia Markidi",
+    src: "/artists/erasmia.jpg",
+    href: "https://open.spotify.com/artist/6yGCwFJ7PT2kBpIJoyv5nc",
+  },
+  {
+    name: "Στέλιος Τσουκιάς",
+    src: "/artists/stelios.jpg",
+    href: "https://open.spotify.com/artist/19vBSkSuxHbDVdxcGTgZDW",
+  },
 ]
 
 /* ── Section heading ────────────────────────────────── */
@@ -96,10 +128,7 @@ function SectionHeading({ eyebrow, title }: { eyebrow?: string; title: string })
   return (
     <div className="mb-8 sm:mb-10">
       {eyebrow && (
-        <p
-          className="mb-3 text-xs font-bold uppercase tracking-[0.2em]"
-          style={{ color: ACCENT }}
-        >
+        <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
           {eyebrow}
         </p>
       )}
@@ -143,10 +172,7 @@ function PackageCard({ pkg }: { pkg: Pkg }) {
       </div>
 
       {pkg.baseNote && (
-        <p
-          className="mt-3 flex items-center gap-1.5 text-sm font-semibold"
-          style={{ color: "var(--fg-2)" }}
-        >
+        <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--fg-2)" }}>
           <Plus size={14} style={{ color: ACCENT }} />
           {pkg.baseNote}
         </p>
@@ -157,7 +183,9 @@ function PackageCard({ pkg }: { pkg: Pkg }) {
           <li key={item} className="flex gap-3">
             <span
               className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-              style={{ backgroundColor: "color-mix(in srgb, " + ACCENT + " 14%, transparent)" }}
+              style={{
+                backgroundColor: "color-mix(in srgb, " + ACCENT + " 14%, transparent)",
+              }}
             >
               <Check size={13} strokeWidth={3} style={{ color: ACCENT }} />
             </span>
@@ -187,8 +215,35 @@ function PackageCard({ pkg }: { pkg: Pkg }) {
 /* ── Page ───────────────────────────────────────────── */
 
 export default function ForArtistsPage() {
+  const pageUrl = siteUrl("/for-artists")
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": `${pageUrl}/#service`,
+    name: "Alive for Artists",
+    url: pageUrl,
+    description: "Υπηρεσίες προβολής για ανεξάρτητους καλλιτέχνες, νέες κυκλοφορίες και live εμφανίσεις.",
+    areaServed: { "@type": "Country", name: "Greece" },
+    availableLanguage: ["el", "en"],
+    provider: { "@id": `${getSiteUrl()}/#organization` },
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: "Alive for Artists packages",
+      itemListElement: [...RELEASE_PACKAGES, ...LIVE_PACKAGES].map((pkg) => ({
+        "@type": "Offer",
+        name: pkg.subject,
+        itemOffered: {
+          "@type": "Service",
+          name: pkg.name,
+          description: pkg.items.join(" "),
+        },
+      })),
+    },
+  }
+
   return (
     <div>
+      <JsonLd data={jsonLd} />
       {/* ── Hero ── */}
       <section className="relative overflow-hidden">
         <div
@@ -221,17 +276,13 @@ export default function ForArtistsPage() {
               <span style={{ color: ACCENT }}>.</span>
             </h1>
 
-            <p
-              className="mt-6 text-lg leading-relaxed"
-              style={{ color: "var(--fg-2)" }}
-            >
-              Το Alive είναι το hub που στηρίζει ανεξάρτητους καλλιτέχνες μέσα από στοχευμένες
-              υπηρεσίες προβολής, βοηθώντας τη μουσική και τη φωνή τους να φτάσουν στο κοινό
-              που τους ταιριάζει.
+            <p className="mt-6 text-lg leading-relaxed" style={{ color: "var(--fg-2)" }}>
+              Το Alive είναι το hub που στηρίζει ανεξάρτητους καλλιτέχνες μέσα από στοχευμένες υπηρεσίες προβολής,
+              βοηθώντας τη μουσική και τη φωνή τους να φτάσουν στο κοινό που τους ταιριάζει.
             </p>
             <p className="mt-4 text-lg leading-relaxed" style={{ color: "var(--fg-2)" }}>
-              Είτε θέλεις να προωθήσεις μια νέα κυκλοφορία, ένα επερχόμενο live ή συνολικά
-              την online παρουσία σου, το Alive μπορεί να σε βοηθήσει να βγεις μπροστά.
+              Είτε θέλεις να προωθήσεις μια νέα κυκλοφορία, ένα επερχόμενο live ή συνολικά την online παρουσία σου, το
+              Alive μπορεί να σε βοηθήσει να βγεις μπροστά.
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
@@ -245,7 +296,10 @@ export default function ForArtistsPage() {
               <a
                 href="#who"
                 className="inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold uppercase tracking-[0.12em] transition-colors"
-                style={{ border: "1px solid var(--border)", color: "var(--fg)" }}
+                style={{
+                  border: "1px solid var(--border)",
+                  color: "var(--fg)",
+                }}
               >
                 Η ιστορία μας
               </a>
@@ -255,10 +309,7 @@ export default function ForArtistsPage() {
       </section>
 
       {/* ── New release packages ── */}
-      <section
-        id="release"
-        className="mx-auto max-w-[1600px] px-4 sm:px-6 xl:px-12 py-14 sm:py-16 scroll-mt-20"
-      >
+      <section id="release" className="mx-auto max-w-[1600px] px-4 sm:px-6 xl:px-12 py-14 sm:py-16 scroll-mt-20">
         <SectionHeading eyebrow="Νέο Release" title="Διάλεξε πακέτο για νέο release" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {RELEASE_PACKAGES.map((pkg) => (
@@ -268,10 +319,7 @@ export default function ForArtistsPage() {
       </section>
 
       {/* ── Live packages ── */}
-      <section
-        id="live"
-        className="mx-auto max-w-[1600px] px-4 sm:px-6 xl:px-12 py-14 sm:py-16 scroll-mt-20"
-      >
+      <section id="live" className="mx-auto max-w-[1600px] px-4 sm:px-6 xl:px-12 py-14 sm:py-16 scroll-mt-20">
         <SectionHeading eyebrow="Live" title="Διάλεξε πακέτο για live" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {LIVE_PACKAGES.map((pkg) => (
@@ -291,7 +339,10 @@ export default function ForArtistsPage() {
               target="_blank"
               rel="noopener noreferrer"
               className="group flex items-center justify-center rounded-2xl p-6 sm:p-8 transition-all hover:-translate-y-1"
-              style={{ backgroundColor: "var(--bg-2)", border: "1px solid var(--border)" }}
+              style={{
+                backgroundColor: "var(--bg-2)",
+                border: "1px solid var(--border)",
+              }}
             >
               <Image
                 src={c.src}
@@ -336,7 +387,10 @@ export default function ForArtistsPage() {
                     >
                       <span
                         className="text-5xl font-black"
-                        style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
+                        style={{
+                          fontFamily: "var(--font-display)",
+                          color: "var(--fg)",
+                        }}
                       >
                         {artist.name.charAt(0)}
                       </span>
@@ -346,7 +400,10 @@ export default function ForArtistsPage() {
                 <div className="flex items-center justify-between gap-2 px-4 py-4">
                   <span
                     className="text-[0.95rem] font-bold tracking-tight"
-                    style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      color: "var(--fg)",
+                    }}
                   >
                     {artist.name}
                   </span>
@@ -361,8 +418,7 @@ export default function ForArtistsPage() {
               </>
             )
 
-            const cardClass =
-              "group overflow-hidden rounded-2xl transition-all hover:-translate-y-1"
+            const cardClass = "group overflow-hidden rounded-2xl transition-all hover:-translate-y-1"
             const cardStyle = {
               backgroundColor: "var(--bg-2)",
               border: "1px solid var(--border)",
@@ -392,7 +448,11 @@ export default function ForArtistsPage() {
       <section
         id="who"
         className="scroll-mt-20"
-        style={{ backgroundColor: "var(--bg-2)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}
+        style={{
+          backgroundColor: "var(--bg-2)",
+          borderTop: "1px solid var(--border)",
+          borderBottom: "1px solid var(--border)",
+        }}
       >
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 xl:px-12 py-16 sm:py-20">
           <div className="grid grid-cols-1 items-center gap-10 md:grid-cols-[280px_1fr] lg:gap-16">
@@ -412,24 +472,23 @@ export default function ForArtistsPage() {
             </div>
 
             <div>
-              <p
-                className="mb-5 text-xs font-bold uppercase tracking-[0.2em]"
-                style={{ color: ACCENT }}
-              >
+              <p className="mb-5 text-xs font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
                 Η ιστορία μας
               </p>
               <blockquote
                 className="text-xl leading-relaxed sm:text-2xl"
-                style={{ fontFamily: "var(--font-display)", color: "var(--fg)", fontWeight: 500 }}
+                style={{
+                  fontFamily: "var(--font-display)",
+                  color: "var(--fg)",
+                  fontWeight: 500,
+                }}
               >
-                Μετά από περισσότερα από επτά χρόνια στον χώρο της μουσικής και των media, το
-                Alive είναι για μένα κάτι πολύ περισσότερο από ένα ακόμη project. Είναι ένα
-                όνειρο που παίρνει επιτέλους μορφή.
+                Μετά από περισσότερα από επτά χρόνια στον χώρο της μουσικής και των media, το Alive είναι για μένα κάτι
+                πολύ περισσότερο από ένα ακόμη project. Είναι ένα όνειρο που παίρνει επιτέλους μορφή.
               </blockquote>
               <p className="mt-5 text-base leading-relaxed" style={{ color: "var(--fg-2)" }}>
-                Ήθελα να δημιουργήσω ένα hub που να στηρίζει ουσιαστικά τους ανεξάρτητους
-                καλλιτέχνες, να τους δίνει χώρο να ακουστούν και να τους βοηθά να φτάσουν πιο
-                κοντά στο κοινό τους.
+                Ήθελα να δημιουργήσω ένα hub που να στηρίζει ουσιαστικά τους ανεξάρτητους καλλιτέχνες, να τους δίνει
+                χώρο να ακουστούν και να τους βοηθά να φτάσουν πιο κοντά στο κοινό τους.
               </p>
               <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--fg-2)" }}>
                 Αυτό είναι το όραμα του Alive — και μόλις ξεκινά.
@@ -471,7 +530,9 @@ export default function ForArtistsPage() {
             </h2>
             <p
               className="mx-auto mt-4 max-w-xl text-base"
-              style={{ color: "color-mix(in srgb, var(--bg) 70%, transparent)" }}
+              style={{
+                color: "color-mix(in srgb, var(--bg) 70%, transparent)",
+              }}
             >
               Γίνε μέρος της κοινότητας που φέρνει τη νέα μουσική μπροστά.
             </p>

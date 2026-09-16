@@ -32,6 +32,11 @@ export function pageMetadata(options: {
   }
   type?: "website" | "article"
   publishedTime?: string
+  modifiedTime?: string
+  authors?: Array<{ name: string; url?: string }>
+  section?: string
+  tags?: string[]
+  index?: boolean
 }): Metadata {
   const description = options.description ?? DEFAULT_DESCRIPTION
   const pageUrl = options.path ? absoluteUrl(options.path) : absoluteUrl("/")
@@ -55,9 +60,15 @@ export function pageMetadata(options: {
       siteName: SITE_NAME,
       locale: "el_GR",
       images: [{ url: ogImage, width: 1200, height: 630, alt: ogTitle }],
-      ...(options.type === "article" && options.publishedTime
-        ? { publishedTime: options.publishedTime }
+      ...(options.type === "article" && options.publishedTime ? { publishedTime: options.publishedTime } : {}),
+      ...(options.type === "article" && options.modifiedTime ? { modifiedTime: options.modifiedTime } : {}),
+      ...(options.type === "article" && options.authors
+        ? {
+            authors: options.authors.map((author) => author.url ?? author.name),
+          }
         : {}),
+      ...(options.type === "article" && options.section ? { section: options.section } : {}),
+      ...(options.type === "article" && options.tags ? { tags: options.tags } : {}),
     },
     twitter: {
       card: "summary_large_image",
@@ -65,6 +76,17 @@ export function pageMetadata(options: {
       description: ogDescription,
       images: [ogImage],
     },
-    alternates: { canonical: pageUrl },
+    alternates: {
+      canonical: pageUrl,
+      types: { "application/rss+xml": absoluteUrl("/feed.xml") },
+    },
+    robots:
+      options.index === false
+        ? {
+            index: false,
+            follow: true,
+            googleBot: { index: false, follow: true },
+          }
+        : { index: true, follow: true },
   }
 }

@@ -3,6 +3,8 @@ import type { Metadata } from "next"
 import { getPublishedPosts, getAllCategories, getCategoryFeaturedPost } from "@/lib/supabase/queries"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { pageMetadata } from "@/lib/metadata"
+import { JsonLd } from "@/components/JsonLd"
+import { getSiteUrl, siteUrl } from "@/lib/site"
 
 export const revalidate = 60
 
@@ -46,14 +48,49 @@ export default async function CategoryPage({ params }: Props) {
   const featured = featuredPost ?? recent[0] ?? null
   const rest = recent.filter((p) => p.id !== featured?.id)
   const posts = featured ? [featured, ...rest] : rest
+  const pageUrl = siteUrl(`/${cat.slug}`)
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        "@id": `${pageUrl}/#collection`,
+        url: pageUrl,
+        name: cat.name,
+        description: cat.description ?? `Όλα τα άρθρα στην ενότητα ${cat.name} του Alive Magazine.`,
+        inLanguage: "el-GR",
+        isPartOf: { "@id": `${getSiteUrl()}/#website` },
+        mainEntity: {
+          "@type": "ItemList",
+          numberOfItems: posts.length,
+          itemListElement: posts.map((post, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: post.title,
+            url: siteUrl(`/${post.category.slug}/${post.slug}`),
+          })),
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Αρχική",
+            item: getSiteUrl(),
+          },
+          { "@type": "ListItem", position: 2, name: cat.name, item: pageUrl },
+        ],
+      },
+    ],
+  }
 
   return (
     <div>
+      <JsonLd data={jsonLd} />
       {/* ── Category header ── */}
-      <div
-        className="border-b"
-        style={{ borderColor: "var(--border)" }}
-      >
+      <div className="border-b" style={{ borderColor: "var(--border)" }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 xl:px-12 py-8">
           <div
             className="inline-block w-10 h-1 rounded-full mb-5"

@@ -3,6 +3,8 @@ import type { Metadata } from "next"
 import { getTagBySlug, getPostsByTag, getAllTags } from "@/lib/supabase/queries"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { pageMetadata } from "@/lib/metadata"
+import { JsonLd } from "@/components/JsonLd"
+import { getSiteUrl, siteUrl } from "@/lib/site"
 
 export const revalidate = 60
 
@@ -33,12 +35,56 @@ export default async function TagPage({ params }: Props) {
   const { slug } = await params
   const [tag, posts] = await Promise.all([getTagBySlug(slug), getPostsByTag(slug)])
   if (!tag) notFound()
+  const pageUrl = siteUrl(`/tag/${tag.slug}`)
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        url: pageUrl,
+        name: `#${tag.name}`,
+        description: `Άρθρα του Alive Magazine με την ετικέτα ${tag.name}.`,
+        inLanguage: "el-GR",
+        isPartOf: { "@id": `${getSiteUrl()}/#website` },
+        mainEntity: {
+          "@type": "ItemList",
+          numberOfItems: posts.length,
+          itemListElement: posts.map((post, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: post.title,
+            url: siteUrl(`/${post.category.slug}/${post.slug}`),
+          })),
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Αρχική",
+            item: getSiteUrl(),
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: `#${tag.name}`,
+            item: pageUrl,
+          },
+        ],
+      },
+    ],
+  }
 
   return (
     <div>
+      <JsonLd data={jsonLd} />
       <div className="border-b" style={{ borderColor: "var(--border)" }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 xl:px-12 py-10">
-          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "var(--fg-3)" }}>Tag</p>
+          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "var(--fg-3)" }}>
+            Tag
+          </p>
           <h1
             className="text-3xl sm:text-4xl xl:text-5xl font-black tracking-tight"
             style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}

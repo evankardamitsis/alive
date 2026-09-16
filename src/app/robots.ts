@@ -1,12 +1,14 @@
 import type { MetadataRoute } from "next"
+import { getSiteUrl, siteUrl } from "@/lib/site"
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: "/",
+      allow: ["/", "/api/og"],
       disallow: ["/admin/", "/api/"],
     },
-    sitemap: "https://alivemag.gr/sitemap.xml",
+    sitemap: siteUrl("/sitemap.xml"),
+    host: getSiteUrl(),
   }
 }

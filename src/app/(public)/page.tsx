@@ -60,6 +60,7 @@ export default async function HomePage() {
 
   return (
     <div>
+      <h1 className="sr-only">Alive Magazine — μουσική, συνεντεύξεις, κριτικές, live και πολιτισμός</h1>
       {/* ── Hero split ── */}
       <section className="max-w-[1600px] mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-6 sm:pb-8">
         <div

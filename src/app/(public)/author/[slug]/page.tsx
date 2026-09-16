@@ -1,13 +1,11 @@
 import Image from "next/image"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
-import {
-  getAuthorBySlug,
-  getPostsByAuthor,
-  getPublicAuthors,
-} from "@/lib/supabase/queries"
+import { getAuthorBySlug, getPostsByAuthor, getPublicAuthors } from "@/lib/supabase/queries"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { pageMetadata } from "@/lib/metadata"
+import { JsonLd } from "@/components/JsonLd"
+import { getSiteUrl, siteUrl } from "@/lib/site"
 
 export const revalidate = 60
 
@@ -24,9 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const author = await getAuthorBySlug(slug)
   if (!author) return {}
-  const description =
-    author.bio?.trim() ||
-    `Άρθρα του/της ${author.name} στο Alive Magazine`
+  const description = author.bio?.trim() || `Άρθρα του/της ${author.name} στο Alive Magazine`
   return pageMetadata({
     title: author.name,
     description,
@@ -46,15 +42,57 @@ export default async function AuthorPage({ params }: Props) {
   if (!author) notFound()
 
   const posts = await getPostsByAuthor(author.id)
+  const pageUrl = siteUrl(`/author/${author.slug}`)
+  const sameAs = Object.values(author.social_links ?? {}).filter(
+    (url): url is string => typeof url === "string" && /^https?:\/\//.test(url)
+  )
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Person",
+        "@id": `${pageUrl}/#person`,
+        name: author.name,
+        description: author.bio ?? undefined,
+        image: author.avatar_url ?? undefined,
+        url: pageUrl,
+        sameAs: sameAs.length > 0 ? sameAs : undefined,
+      },
+      {
+        "@type": "ProfilePage",
+        "@id": `${pageUrl}/#profile`,
+        url: pageUrl,
+        name: author.name,
+        inLanguage: "el-GR",
+        isPartOf: { "@id": `${getSiteUrl()}/#website` },
+        mainEntity: { "@id": `${pageUrl}/#person` },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Αρχική",
+            item: getSiteUrl(),
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: author.name,
+            item: pageUrl,
+          },
+        ],
+      },
+    ],
+  }
 
   return (
     <div>
+      <JsonLd data={jsonLd} />
       <div className="border-b" style={{ borderColor: "var(--border)" }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 xl:px-12 py-10">
-          <p
-            className="text-xs font-bold uppercase tracking-widest mb-5"
-            style={{ color: "var(--fg-3)" }}
-          >
+          <p className="text-xs font-bold uppercase tracking-widest mb-5" style={{ color: "var(--fg-3)" }}>
             Συγγραφέας
           </p>
 
@@ -79,7 +117,10 @@ export default async function AuthorPage({ params }: Props) {
             <div className="min-w-0 flex-1">
               <h1
                 className="text-3xl sm:text-4xl xl:text-5xl font-black tracking-tight"
-                style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
+                style={{
+                  fontFamily: "var(--font-display)",
+                  color: "var(--fg)",
+                }}
               >
                 {author.name}
               </h1>
@@ -91,10 +132,7 @@ export default async function AuthorPage({ params }: Props) {
                   {author.bio}
                 </p>
               )}
-              <p
-                className="mt-5 text-xs font-medium uppercase tracking-widest"
-                style={{ color: "var(--fg-3)" }}
-              >
+              <p className="mt-5 text-xs font-medium uppercase tracking-widest" style={{ color: "var(--fg-3)" }}>
                 {posts.length} {posts.length === 1 ? "άρθρο" : "άρθρα"}
               </p>
             </div>

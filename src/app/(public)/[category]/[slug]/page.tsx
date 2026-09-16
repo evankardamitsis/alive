@@ -1,15 +1,17 @@
-import { notFound } from "next/navigation"
+import { notFound, permanentRedirect } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { getPostBySlug, getRelatedPosts, getAdjacentPosts, getAllPublishedSlugs } from "@/lib/supabase/queries"
-import { formatDate, estimateReadTime, cleanExcerpt } from "@/lib/utils"
+import { articleDescription, formatDate, estimateReadTime, wordCount } from "@/lib/utils"
 import { normalizeArticleImages } from "@/lib/article-content"
-import { pageMetadata } from "@/lib/metadata"
+import { pageMetadata, SITE_NAME } from "@/lib/metadata"
+import { getSiteUrl, siteUrl } from "@/lib/site"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { CategoryPill } from "@/components/article/ArticleCard"
 import { ReadingProgress } from "@/components/article/ReadingProgress"
 import { ShareButtons } from "@/components/article/ShareButtons"
+import { JsonLd } from "@/components/JsonLd"
 
 export const revalidate = 60
 export const dynamicParams = true
@@ -24,19 +26,31 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { category, slug: rawSlug } = await params
+  const { slug: rawSlug } = await params
   const slug = decodeURIComponent(rawSlug)
   const post = await getPostBySlug(slug)
   if (!post) return {}
 
-  const description = cleanExcerpt(post.excerpt) || undefined
+  const description = articleDescription(post.excerpt, post.content) || undefined
 
   return pageMetadata({
     title: post.title,
     description,
-    path: `/${category}/${slug}`,
+    path: `/${post.category.slug}/${post.slug}`,
     type: "article",
     publishedTime: post.published_at ?? undefined,
+    modifiedTime: post.updated_at ?? post.published_at ?? undefined,
+    authors:
+      post.author.show_on_site !== false
+        ? [
+            {
+              name: post.author.name,
+              url: siteUrl(`/author/${post.author.slug}`),
+            },
+          ]
+        : [{ name: SITE_NAME, url: getSiteUrl() }],
+    section: post.category.name,
+    tags: post.tags.map((tag) => tag.name),
     og: {
       title: post.title,
       description,
@@ -52,44 +66,82 @@ export default async function ArticlePage({ params }: Props) {
   const slug = decodeURIComponent(rawSlug)
   const post = await getPostBySlug(slug)
   if (!post) notFound()
+  if (category !== post.category.slug || slug !== post.slug) {
+    permanentRedirect(`/${post.category.slug}/${post.slug}`)
+  }
 
-  const [related, adjacent] = await Promise.all([
-    getRelatedPosts(post, 4),
-    getAdjacentPosts(post),
-  ])
+  const [related, adjacent] = await Promise.all([getRelatedPosts(post, 4), getAdjacentPosts(post)])
   const readTime = estimateReadTime(post.content)
-  const excerpt = cleanExcerpt(post.excerpt)
-  const postUrl = `https://alivemag.gr/${category}/${slug}`
+  const excerpt = articleDescription(post.excerpt, post.content, 260)
+  const postUrl = siteUrl(`/${post.category.slug}/${post.slug}`)
+  const organizationId = `${getSiteUrl()}/#organization`
+  const authorUrl = siteUrl(`/author/${post.author.slug}`)
+  const authorSameAs = Object.values(post.author.social_links ?? {}).filter(
+    (url): url is string => typeof url === "string" && /^https?:\/\//.test(url)
+  )
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Article",
-    headline: post.title,
-    description: excerpt || undefined,
-    url: postUrl,
-    datePublished: post.published_at,
-    dateModified: post.updated_at ?? post.published_at,
-    image: post.cover_image_url
-      ? { "@type": "ImageObject", url: post.cover_image_url }
-      : undefined,
-    author:
-      post.author && post.author.show_on_site !== false
-        ? { "@type": "Person", name: post.author.name }
-        : undefined,
-    publisher: {
-      "@type": "Organization",
-      name: "Alive Magazine",
-      url: "https://alivemag.gr",
-    },
-    inLanguage: "el",
+    "@graph": [
+      {
+        "@type": "NewsArticle",
+        "@id": `${postUrl}/#article`,
+        headline: post.title,
+        description: excerpt || undefined,
+        url: postUrl,
+        mainEntityOfPage: { "@type": "WebPage", "@id": postUrl },
+        datePublished: post.published_at,
+        dateModified: post.updated_at ?? post.published_at,
+        image: post.cover_image_url ? [post.cover_image_url] : undefined,
+        thumbnailUrl: post.cover_image_url ?? undefined,
+        author:
+          post.author.show_on_site !== false
+            ? {
+                "@type": "Person",
+                "@id": `${authorUrl}/#person`,
+                name: post.author.name,
+                url: authorUrl,
+                sameAs: authorSameAs.length > 0 ? authorSameAs : undefined,
+              }
+            : { "@id": organizationId },
+        publisher: { "@id": organizationId },
+        articleSection: post.category.name,
+        keywords: post.tags.map((tag) => tag.name).join(", ") || undefined,
+        wordCount: wordCount(post.content),
+        timeRequired: `PT${readTime}M`,
+        isAccessibleForFree: true,
+        inLanguage: "el-GR",
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${postUrl}/#breadcrumb`,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Αρχική",
+            item: getSiteUrl(),
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: post.category.name,
+            item: siteUrl(`/${post.category.slug}`),
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: post.title,
+            item: postUrl,
+          },
+        ],
+      },
+    ],
   }
 
   return (
     <div>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
       <ReadingProgress />
 
       {/* ── Split hero ── */}
@@ -99,15 +151,17 @@ export default async function ArticlePage({ params }: Props) {
           style={{ border: "1px solid var(--border)", minHeight: 480 }}
         >
           {/* Left — title block */}
-          <div
-            className="flex flex-col justify-between p-5 md:p-8 xl:p-12"
-            style={{ backgroundColor: "var(--bg-2)" }}
-          >
+          <div className="flex flex-col justify-between p-5 md:p-8 xl:p-12" style={{ backgroundColor: "var(--bg-2)" }}>
             <div>
-              <CategoryPill category={post.category} />
+              <Link href={`/${post.category.slug}`} aria-label={`Περισσότερα από ${post.category.name}`}>
+                <CategoryPill category={post.category} />
+              </Link>
               <h1
                 className="mt-4 text-2xl md:text-4xl xl:text-[2.75rem] font-bold leading-[1.1] tracking-tight"
-                style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
+                style={{
+                  fontFamily: "var(--font-display)",
+                  color: "var(--fg)",
+                }}
               >
                 {post.title}
               </h1>
@@ -125,7 +179,13 @@ export default async function ArticlePage({ params }: Props) {
               )}
             </div>
 
-            <div className="mt-8 flex items-center justify-between flex-wrap gap-3" style={{ borderTop: "1px solid var(--border)", paddingTop: "1.5rem" }}>
+            <div
+              className="mt-8 flex items-center justify-between flex-wrap gap-3"
+              style={{
+                borderTop: "1px solid var(--border)",
+                paddingTop: "1.5rem",
+              }}
+            >
               {post.author.show_on_site !== false ? (
                 <div className="flex items-center gap-3">
                   <Link href={`/author/${post.author.slug}`} className="flex items-center gap-3 group">
@@ -139,7 +199,10 @@ export default async function ArticlePage({ params }: Props) {
                       />
                     )}
                     <div>
-                      <p className="text-sm font-semibold group-hover:underline underline-offset-2" style={{ color: "var(--fg)" }}>
+                      <p
+                        className="text-sm font-semibold group-hover:underline underline-offset-2"
+                        style={{ color: "var(--fg)" }}
+                      >
                         {post.author.name}
                       </p>
                       <p className="text-xs" style={{ color: "var(--fg-3)" }}>
@@ -179,25 +242,30 @@ export default async function ArticlePage({ params }: Props) {
       {/* ── Body + sidebar ── */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 xl:px-12 pt-8 pb-16">
         <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_300px] xl:gap-16">
-
           {/* Main column */}
           <div>
             <div
               className="article-content"
-              dangerouslySetInnerHTML={{ __html: normalizeArticleImages(post.content) }}
+              dangerouslySetInnerHTML={{
+                __html: normalizeArticleImages(post.content),
+              }}
             />
 
             {/* Tags */}
             {post.tags && post.tags.length > 0 && (
               <div className="mt-12 flex flex-wrap gap-2">
                 {post.tags.map((t) => (
-                  <span
+                  <Link
                     key={t.id}
+                    href={`/tag/${t.slug}`}
                     className="rounded-full px-3 py-1 text-xs font-medium"
-                    style={{ border: "1px solid var(--border)", color: "var(--fg-2)" }}
+                    style={{
+                      border: "1px solid var(--border)",
+                      color: "var(--fg-2)",
+                    }}
                   >
                     #{t.name}
-                  </span>
+                  </Link>
                 ))}
               </div>
             )}
@@ -218,20 +286,34 @@ export default async function ArticlePage({ params }: Props) {
               >
                 {adjacent.prev ? (
                   <Link href={`/${adjacent.prev.category.slug}/${adjacent.prev.slug}`} className="group">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: "var(--fg-3)" }}>
+                    <p
+                      className="text-[10px] font-bold uppercase tracking-[0.2em] mb-2"
+                      style={{ color: "var(--fg-3)" }}
+                    >
                       ← Προηγούμενο
                     </p>
-                    <p className="text-sm font-semibold leading-snug line-clamp-2 group-hover:opacity-60 transition-opacity" style={{ color: "var(--fg)" }}>
+                    <p
+                      className="text-sm font-semibold leading-snug line-clamp-2 group-hover:opacity-60 transition-opacity"
+                      style={{ color: "var(--fg)" }}
+                    >
                       {adjacent.prev.title}
                     </p>
                   </Link>
-                ) : <div />}
+                ) : (
+                  <div />
+                )}
                 {adjacent.next && (
                   <Link href={`/${adjacent.next.category.slug}/${adjacent.next.slug}`} className="group text-right">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: "var(--fg-3)" }}>
+                    <p
+                      className="text-[10px] font-bold uppercase tracking-[0.2em] mb-2"
+                      style={{ color: "var(--fg-3)" }}
+                    >
                       Επόμενο →
                     </p>
-                    <p className="text-sm font-semibold leading-snug line-clamp-2 group-hover:opacity-60 transition-opacity" style={{ color: "var(--fg)" }}>
+                    <p
+                      className="text-sm font-semibold leading-snug line-clamp-2 group-hover:opacity-60 transition-opacity"
+                      style={{ color: "var(--fg)" }}
+                    >
                       {adjacent.next.title}
                     </p>
                   </Link>
@@ -243,7 +325,6 @@ export default async function ArticlePage({ params }: Props) {
           {/* Sidebar */}
           <aside className="hidden xl:block">
             <div className="sticky top-6 space-y-8">
-
               {/* Author */}
               {post.author.show_on_site !== false && (
                 <Link
@@ -265,7 +346,10 @@ export default async function ArticlePage({ params }: Props) {
                       />
                     )}
                     <div>
-                      <p className="font-semibold text-sm underline-offset-2 hover:underline" style={{ color: "var(--fg)" }}>
+                      <p
+                        className="font-semibold text-sm underline-offset-2 hover:underline"
+                        style={{ color: "var(--fg)" }}
+                      >
                         {post.author.name}
                       </p>
                       {post.author.bio && (
@@ -281,12 +365,22 @@ export default async function ArticlePage({ params }: Props) {
               {/* Tags */}
               {post.tags && post.tags.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-3" style={{ color: "var(--fg-3)" }}>Tags</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-3" style={{ color: "var(--fg-3)" }}>
+                    Tags
+                  </p>
                   <div className="flex flex-wrap gap-1.5">
                     {post.tags.map((t) => (
-                      <span key={t.id} className="rounded-full px-2.5 py-1 text-[11px] font-medium" style={{ border: "1px solid var(--border)", color: "var(--fg-2)" }}>
+                      <Link
+                        href={`/tag/${t.slug}`}
+                        key={t.id}
+                        className="rounded-full px-2.5 py-1 text-[11px] font-medium"
+                        style={{
+                          border: "1px solid var(--border)",
+                          color: "var(--fg-2)",
+                        }}
+                      >
                         #{t.name}
-                      </span>
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -305,7 +399,6 @@ export default async function ArticlePage({ params }: Props) {
                   </div>
                 </div>
               )}
-
             </div>
           </aside>
         </div>

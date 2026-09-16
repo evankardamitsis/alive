@@ -1,4 +1,9 @@
+import type { Metadata } from "next"
 import { AdminSidebar } from "@/components/admin/AdminSidebar"
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, noarchive: true },
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,9 +12,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main content — offset on mobile for the fixed top bar */}
       <div className="flex flex-1 flex-col overflow-hidden lg:ml-0">
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pt-[72px] lg:pt-8">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pt-[72px] lg:pt-8">{children}</main>
       </div>
     </div>
   )

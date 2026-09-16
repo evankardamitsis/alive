@@ -1,14 +1,22 @@
 import { unstable_cache } from "next/cache"
 import { createPublicClient } from "./public"
 import { POSTS_CACHE_TAG } from "@/lib/revalidate-posts"
-import type { PostWithRelations, Category } from "@/types"
+import type { PostWithRelations, Category, Tag } from "@/types"
 
 const POST_SELECT = `*, author:authors(*), category:categories(*), tags:post_tags(tag:tags(*))`
 
-function withRelations(posts: PostWithRelations[] | null): PostWithRelations[] {
-  return (posts ?? []).filter(
-    (post): post is PostWithRelations => Boolean(post.category && post.author)
-  )
+type PostTagRelation = Tag | { tag: Tag | null }
+type PostRow = Omit<PostWithRelations, "tags"> & { tags?: PostTagRelation[] }
+
+function withRelations(posts: PostRow[] | null): PostWithRelations[] {
+  return (posts ?? [])
+    .filter((post) => Boolean(post.category && post.author))
+    .map((post) => ({
+      ...post,
+      tags: (post.tags ?? [])
+        .map((relation) => ("tag" in relation ? relation.tag : relation))
+        .filter((tag): tag is Tag => Boolean(tag)),
+    }))
 }
 
 function liveNow() {
@@ -24,11 +32,6 @@ function applyLiveFilters<T extends LiveFilterableQuery<T>>(query: T): T {
   return query.not("published_at", "is", null).lte("published_at", liveNow())
 }
 
-type TagJoinRow = {
-  slug?: string
-  tag?: { slug?: string } | null
-}
-
 async function fetchPublishedPosts(options?: {
   limit?: number
   offset?: number
@@ -42,21 +45,12 @@ async function fetchPublishedPosts(options?: {
 
   let categoryId: string | undefined
   if (categorySlug) {
-    const { data: category } = await supabase
-      .from("categories")
-      .select("id")
-      .eq("slug", categorySlug)
-      .maybeSingle()
+    const { data: category } = await supabase.from("categories").select("id").eq("slug", categorySlug).maybeSingle()
     categoryId = category?.id
     if (!categoryId) return []
   }
 
-  let query = applyLiveFilters(
-    supabase
-      .from("posts")
-      .select(POST_SELECT)
-      .eq("status", "published")
-  )
+  let query = applyLiveFilters(supabase.from("posts").select(POST_SELECT).eq("status", "published"))
     .order("published_at", { ascending: false })
     .range(offset, offset + limit - 1)
 
@@ -67,7 +61,7 @@ async function fetchPublishedPosts(options?: {
 
   const { data, error } = await query
   if (error) throw error
-  return withRelations(data as PostWithRelations[])
+  return withRelations(data as PostRow[])
 }
 
 export async function getPublishedPosts(options?: {
@@ -78,11 +72,10 @@ export async function getPublishedPosts(options?: {
   featured?: boolean
   excludeIds?: string[]
 }) {
-  return unstable_cache(
-    () => fetchPublishedPosts(options),
-    ["getPublishedPosts", JSON.stringify(options ?? {})],
-    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
-  )()
+  return unstable_cache(() => fetchPublishedPosts(options), ["getPublishedPosts", JSON.stringify(options ?? {})], {
+    tags: [POSTS_CACHE_TAG],
+    revalidate: 60,
+  })()
 }
 
 export async function getCategorySpotlights(perCategory = 4) {
@@ -93,7 +86,10 @@ export async function getCategorySpotlights(perCategory = 4) {
         categories.map(async (cat) => {
           const [featuredPost, recent] = await Promise.all([
             fetchCategoryFeaturedPost(cat.slug),
-            fetchPublishedPosts({ categorySlug: cat.slug, limit: perCategory + 1 }),
+            fetchPublishedPosts({
+              categorySlug: cat.slug,
+              limit: perCategory + 1,
+            }),
           ])
           let posts: PostWithRelations[]
           if (featuredPost) {
@@ -116,21 +112,13 @@ async function fetchPostBySlug(slug: string) {
   const supabase = createPublicClient()
 
   let { data } = await applyLiveFilters(
-    supabase
-      .from("posts")
-      .select(POST_SELECT)
-      .eq("slug", slug)
-      .eq("status", "published")
+    supabase.from("posts").select(POST_SELECT).eq("slug", slug).eq("status", "published")
   ).maybeSingle()
 
   if (!data && slug.length > 60) {
     const prefix = slug.slice(0, 60)
     const { data: fallback } = await applyLiveFilters(
-      supabase
-        .from("posts")
-        .select(POST_SELECT)
-        .like("slug", `${prefix}%`)
-        .eq("status", "published")
+      supabase.from("posts").select(POST_SELECT).like("slug", `${prefix}%`).eq("status", "published")
     )
       .limit(1)
       .maybeSingle()
@@ -138,25 +126,19 @@ async function fetchPostBySlug(slug: string) {
   }
 
   if (!data) return null
-  const post = data as PostWithRelations
-  if (!post.category || !post.author) return null
-  return post
+  return withRelations([data as PostRow])[0] ?? null
 }
 
 export async function getPostBySlug(slug: string) {
-  return unstable_cache(
-    () => fetchPostBySlug(slug),
-    ["getPostBySlug", slug],
-    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
-  )()
+  return unstable_cache(() => fetchPostBySlug(slug), ["getPostBySlug", slug], {
+    tags: [POSTS_CACHE_TAG],
+    revalidate: 60,
+  })()
 }
 
 export async function getAllCategories(): Promise<Category[]> {
   const supabase = createPublicClient()
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .order("name")
+  const { data, error } = await supabase.from("categories").select("*").order("name")
 
   if (error) throw error
   return data
@@ -169,17 +151,12 @@ export async function getFeaturedPosts(limit = 5) {
 async function fetchHeroPost(): Promise<PostWithRelations | null> {
   const supabase = createPublicClient()
   const { data } = await applyLiveFilters(
-    supabase
-      .from("posts")
-      .select(POST_SELECT)
-      .eq("status", "published")
-      .eq("is_hero", true)
+    supabase.from("posts").select(POST_SELECT).eq("status", "published").eq("is_hero", true)
   )
     .limit(1)
     .maybeSingle()
   if (!data) return null
-  const post = data as PostWithRelations
-  return post.category && post.author ? post : null
+  return withRelations([data as PostRow])[0] ?? null
 }
 
 export async function getHeroPost(): Promise<PostWithRelations | null> {
@@ -191,11 +168,7 @@ export async function getHeroPost(): Promise<PostWithRelations | null> {
 
 async function fetchCategoryFeaturedPost(categorySlug: string): Promise<PostWithRelations | null> {
   const supabase = createPublicClient()
-  const { data: category } = await supabase
-    .from("categories")
-    .select("id")
-    .eq("slug", categorySlug)
-    .maybeSingle()
+  const { data: category } = await supabase.from("categories").select("id").eq("slug", categorySlug).maybeSingle()
   if (!category?.id) return null
 
   const { data } = await applyLiveFilters(
@@ -209,16 +182,14 @@ async function fetchCategoryFeaturedPost(categorySlug: string): Promise<PostWith
     .limit(1)
     .maybeSingle()
   if (!data) return null
-  const post = data as PostWithRelations
-  return post.category && post.author ? post : null
+  return withRelations([data as PostRow])[0] ?? null
 }
 
 export async function getCategoryFeaturedPost(categorySlug: string): Promise<PostWithRelations | null> {
-  return unstable_cache(
-    () => fetchCategoryFeaturedPost(categorySlug),
-    ["getCategoryFeaturedPost", categorySlug],
-    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
-  )()
+  return unstable_cache(() => fetchCategoryFeaturedPost(categorySlug), ["getCategoryFeaturedPost", categorySlug], {
+    tags: [POSTS_CACHE_TAG],
+    revalidate: 60,
+  })()
 }
 
 export async function getAdjacentPosts(post: PostWithRelations) {
@@ -266,27 +237,19 @@ async function fetchPostsByTag(tagSlug: string, limit = 24) {
   const supabase = createPublicClient()
   const tag = await getTagBySlug(tagSlug)
   if (!tag) return []
-  const { data, error } = await applyLiveFilters(
-    supabase
-      .from("posts")
-      .select(POST_SELECT)
-      .eq("status", "published")
-  )
+  const { data, error } = await applyLiveFilters(supabase.from("posts").select(POST_SELECT).eq("status", "published"))
     .order("published_at", { ascending: false })
     .limit(limit)
   if (error) throw error
-  const posts = withRelations(data as PostWithRelations[])
-  return posts.filter((p) =>
-    p.tags?.some((t: TagJoinRow) => t.slug === tagSlug || t.tag?.slug === tagSlug)
-  )
+  const posts = withRelations(data as PostRow[])
+  return posts.filter((post) => post.tags.some((tag) => tag.slug === tagSlug))
 }
 
 export async function getPostsByTag(tagSlug: string, limit = 24) {
-  return unstable_cache(
-    () => fetchPostsByTag(tagSlug, limit),
-    ["getPostsByTag", tagSlug, String(limit)],
-    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
-  )()
+  return unstable_cache(() => fetchPostsByTag(tagSlug, limit), ["getPostsByTag", tagSlug, String(limit)], {
+    tags: [POSTS_CACHE_TAG],
+    revalidate: 60,
+  })()
 }
 
 export async function getAllTags() {
@@ -346,6 +309,7 @@ type PublishedSlug = {
   slug: string
   published_at: string
   updated_at: string
+  cover_image_url: string | null
   category: { slug: string }
 }
 
@@ -354,27 +318,31 @@ async function fetchAllPublishedSlugs(): Promise<PublishedSlug[]> {
   const { data, error } = await applyLiveFilters(
     supabase
       .from("posts")
-      .select("slug, published_at, updated_at, category:categories(slug)")
+      .select("slug, published_at, updated_at, cover_image_url, category:categories(slug)")
       .eq("status", "published")
   ).order("published_at", { ascending: false })
   if (error) throw error
 
   return (data ?? [])
-    .map((row: {
-      slug: string
-      published_at: string
-      updated_at: string
-      category: { slug: string } | { slug: string }[] | null
-    }) => {
-      const category = Array.isArray(row.category) ? row.category[0] : row.category
-      if (!category?.slug || !row.slug || !row.published_at || !row.updated_at) return null
-      return {
-        slug: row.slug,
-        published_at: row.published_at,
-        updated_at: row.updated_at,
-        category: { slug: category.slug },
+    .map(
+      (row: {
+        slug: string
+        published_at: string
+        updated_at: string
+        cover_image_url: string | null
+        category: { slug: string } | { slug: string }[] | null
+      }) => {
+        const category = Array.isArray(row.category) ? row.category[0] : row.category
+        if (!category?.slug || !row.slug || !row.published_at || !row.updated_at) return null
+        return {
+          slug: row.slug,
+          published_at: row.published_at,
+          updated_at: row.updated_at,
+          cover_image_url: row.cover_image_url,
+          category: { slug: category.slug },
+        }
       }
-    })
+    )
     .filter((row: PublishedSlug | null): row is PublishedSlug => row !== null)
 }
 
@@ -390,24 +358,19 @@ async function fetchSearchPosts(query: string, limit = 24) {
   const supabase = createPublicClient()
   const term = `%${query.trim()}%`
   const { data, error } = await applyLiveFilters(
-    supabase
-      .from("posts")
-      .select(POST_SELECT)
-      .eq("status", "published")
-      .or(`title.ilike.${term},excerpt.ilike.${term}`)
+    supabase.from("posts").select(POST_SELECT).eq("status", "published").or(`title.ilike.${term},excerpt.ilike.${term}`)
   )
     .order("published_at", { ascending: false })
     .limit(limit)
   if (error) throw error
-  return withRelations(data as PostWithRelations[])
+  return withRelations(data as PostRow[])
 }
 
 export async function searchPosts(query: string, limit = 24) {
-  return unstable_cache(
-    () => fetchSearchPosts(query, limit),
-    ["searchPosts", query, String(limit)],
-    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
-  )()
+  return unstable_cache(() => fetchSearchPosts(query, limit), ["searchPosts", query, String(limit)], {
+    tags: [POSTS_CACHE_TAG],
+    revalidate: 60,
+  })()
 }
 
 export async function getRelatedPosts(post: PostWithRelations, limit = 4) {
@@ -423,5 +386,5 @@ export async function getRelatedPosts(post: PostWithRelations, limit = 4) {
     .order("published_at", { ascending: false })
     .limit(limit)
 
-  return withRelations(data as PostWithRelations[])
+  return withRelations(data as PostRow[])
 }
