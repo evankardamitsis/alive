@@ -9,10 +9,10 @@ import { Logo } from "@/components/Logo"
 import { SearchModal } from "@/components/search/SearchModal"
 
 const NAV_LINKS = [
-  { label: "A) LIVE WITH", href: "/a-live-with", color: "#06d6a0" },
   { label: "Culture", href: "/culture", color: "#a8dadc" },
   { label: "Opinions", href: "/opinions", color: "#e9c46a" },
   { label: "Liveshows", href: "/liveshows", color: "#f4a261" },
+  { label: "(A) LIVE WITH", href: "/alivewith", color: "#a8dadc" },
   { label: "Reviews", href: "/reviews", color: "#2a9d8f" },
   { label: "Spotlight", href: "/spotlight", color: "#e63946" },
   { label: "Interviews", href: "/interviews", color: "#c77dff" },
