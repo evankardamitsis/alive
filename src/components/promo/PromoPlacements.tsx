@@ -67,11 +67,19 @@ export function PromoRails({
   )
 }
 
-function InFeedBanner({ banner, className }: { banner: PublicPromoBanner; className: string }) {
+function InFeedBanner({
+  banner,
+  placement,
+  className,
+}: {
+  banner: PublicPromoBanner
+  placement: "feed" | "article"
+  className: string
+}) {
   return (
     <aside aria-label="Διαφήμιση" className={className}>
       <PromoLabel className="mb-2" />
-      <PromoLink banner={banner} placement="feed" className="mx-auto block w-fit max-w-full overflow-hidden rounded-xl">
+      <PromoLink banner={banner} placement={placement} className="mx-auto block w-fit max-w-full overflow-hidden rounded-xl">
         <PromoPicture
           banner={banner}
           sizes="(max-width: 767px) 100vw, 970px"
@@ -82,26 +90,56 @@ function InFeedBanner({ banner, className }: { banner: PublicPromoBanner; classN
   )
 }
 
-/** In-feed banner for phones, tablets and laptops. Hidden where the side rails take over. */
+/**
+ * Banner between content. "feed" slots are for phones, tablets and laptops and hide where the
+ * side rails take over (1440px+); "article" slots sit between paragraphs and show on every screen.
+ */
 export function PromoInFeed({
   banners,
   slot,
+  placement = "feed",
   className = "",
 }: {
   banners: PublicPromoBanner[]
   slot: number
+  placement?: "feed" | "article"
   className?: string
 }) {
   const mobile = bannerForSlot(forMobile(banners), slot)
   const desktop = bannerForSlot(forDesktop(banners), slot)
+  const wide = placement === "feed" ? "min-[1440px]:hidden" : ""
 
   if (mobile && desktop && mobile.id === desktop.id) {
-    return <InFeedBanner banner={mobile} className={`min-[1440px]:hidden ${className}`} />
+    return <InFeedBanner banner={mobile} placement={placement} className={`${wide} ${className}`} />
   }
   return (
     <>
-      {mobile && <InFeedBanner banner={mobile} className={`md:hidden ${className}`} />}
-      {desktop && <InFeedBanner banner={desktop} className={`max-md:hidden min-[1440px]:hidden ${className}`} />}
+      {mobile && <InFeedBanner banner={mobile} placement={placement} className={`md:hidden ${className}`} />}
+      {desktop && (
+        <InFeedBanner banner={desktop} placement={placement} className={`max-md:hidden ${wide} ${className}`} />
+      )}
     </>
+  )
+}
+
+/**
+ * Banner at the top of an article's right-hand sidebar (the sidebar shows from 1280px).
+ * Takes the second banner in the rotation, so it differs from the first in-article banner.
+ */
+export function PromoSidebar({ banners, className = "" }: { banners: PublicPromoBanner[]; className?: string }) {
+  const desktop = forDesktop(banners)
+  if (desktop.length === 0) return null
+  const banner = desktop[1 % desktop.length]
+  return (
+    <aside aria-label="Διαφήμιση" className={className}>
+      <PromoLabel className="mb-2" />
+      <PromoLink banner={banner} placement="sidebar" className="mx-auto block w-fit max-w-full overflow-hidden rounded-xl">
+        <PromoPicture
+          banner={banner}
+          sizes="300px"
+          className="mx-auto block h-auto max-h-[600px] w-[var(--promo-w)] max-w-full object-contain"
+        />
+      </PromoLink>
+    </aside>
   )
 }

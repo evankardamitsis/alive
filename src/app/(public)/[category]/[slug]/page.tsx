@@ -1,10 +1,11 @@
+import { Fragment } from "react"
 import { notFound, permanentRedirect } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { getPostBySlug, getRelatedPosts, getAdjacentPosts, getAllPublishedSlugs } from "@/lib/supabase/queries"
 import { articleDescription, formatDate, estimateReadTime, wordCount } from "@/lib/utils"
-import { normalizeArticleImages } from "@/lib/article-content"
+import { normalizeArticleImages, splitArticleForPromos } from "@/lib/article-content"
 import { pageMetadata, SITE_NAME } from "@/lib/metadata"
 import { getSiteUrl, siteUrl } from "@/lib/site"
 import { ArticleCard } from "@/components/article/ArticleCard"
@@ -13,7 +14,7 @@ import { ReadingProgress } from "@/components/article/ReadingProgress"
 import { ShareButtons } from "@/components/article/ShareButtons"
 import { JsonLd } from "@/components/JsonLd"
 import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
-import { PromoRails, PromoInFeed, inlineBannersFor } from "@/components/promo/PromoPlacements"
+import { PromoRails, PromoInFeed, PromoSidebar, inlineBannersFor } from "@/components/promo/PromoPlacements"
 
 export const revalidate = 60
 export const dynamicParams = true
@@ -78,6 +79,10 @@ export default async function ArticlePage({ params }: Props) {
     getLivePromoBanners(),
   ])
   const promos = inlineBannersFor(liveBanners, { type: "article", categoryId: post.category.id })
+  // Banners go between paragraphs (after the 3rd, then every 6th); with no banners, one block.
+  const contentChunks = promos.length > 0
+    ? splitArticleForPromos(normalizeArticleImages(post.content))
+    : [normalizeArticleImages(post.content)]
   const readTime = estimateReadTime(post.content)
   const excerpt = articleDescription(post.excerpt, post.content, 260)
   const postUrl = siteUrl(`/${post.category.slug}/${post.slug}`)
@@ -251,14 +256,15 @@ export default async function ArticlePage({ params }: Props) {
         <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_300px] xl:gap-16">
           {/* Main column */}
           <div>
-            <div
-              className="article-content"
-              dangerouslySetInnerHTML={{
-                __html: normalizeArticleImages(post.content),
-              }}
-            />
+            {/* Banners sit between blocks of text, never inside one (article-content styles every img). */}
+            {contentChunks.map((html, i) => (
+              <Fragment key={i}>
+                {i > 0 && <PromoInFeed banners={promos} slot={i - 1} placement="article" className="my-10" />}
+                <div className="article-content" dangerouslySetInnerHTML={{ __html: html }} />
+              </Fragment>
+            ))}
 
-            <PromoInFeed banners={promos} slot={0} className="mt-12" />
+            <PromoInFeed banners={promos} slot={contentChunks.length - 1} className="mt-12" />
 
             {/* Tags */}
             {post.tags && post.tags.length > 0 && (
@@ -334,6 +340,7 @@ export default async function ArticlePage({ params }: Props) {
           {/* Sidebar */}
           <aside className="hidden xl:block">
             <div className="sticky top-6 space-y-8">
+              <PromoSidebar banners={promos} />
               {/* Author */}
               {post.author.show_on_site !== false && (
                 <Link

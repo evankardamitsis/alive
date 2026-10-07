@@ -17,6 +17,8 @@ const RANGES = [
 const PLACEMENT_LABELS: Record<string, string> = {
   rail: "Side rail",
   feed: "In feed",
+  article: "In article",
+  sidebar: "Sidebar",
   prestitial: "Prestitial",
   interstitial: "Interstitial",
   special_boost: "Special Boost",

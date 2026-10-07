@@ -17,7 +17,7 @@ const eventSchema = z.object({
     .regex(/^\/(?!\/)[^\s]*$/)
     .refine((p) => !/^\/(admin|api)(\/|$)/.test(p)),
   bannerId: z.uuid().optional(),
-  placement: z.enum(["rail", "feed", "prestitial", "interstitial", "special_boost"]).optional(),
+  placement: z.enum(["rail", "feed", "article", "sidebar", "prestitial", "interstitial", "special_boost"]).optional(),
   referrer: z.string().max(500).optional(),
 })
 

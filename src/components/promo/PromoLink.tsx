@@ -43,7 +43,7 @@ export function PromoLink({
 
   useEffect(() => {
     // Full-screen formats cover the page, so opening one is an impression.
-    if (placement !== "rail" && placement !== "feed") {
+    if (placement === "prestitial" || placement === "interstitial" || placement === "special_boost") {
       recordImpression(banner, placement)
       return
     }

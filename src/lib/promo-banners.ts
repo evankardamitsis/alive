@@ -52,7 +52,14 @@ export const PROMO_DEVICES: [PromoBannerDevice, string][] = [
 ]
 
 /** Where a banner was shown — recorded with impressions and clicks. */
-export type PromoPlacement = "rail" | "feed" | "prestitial" | "interstitial" | "special_boost"
+export type PromoPlacement =
+  | "rail"
+  | "feed"
+  | "article"
+  | "sidebar"
+  | "prestitial"
+  | "interstitial"
+  | "special_boost"
 
 /** Fields the public site needs — keeps admin-only data (name, timestamps) out of the HTML. */
 export type PublicPromoBanner = Pick<
