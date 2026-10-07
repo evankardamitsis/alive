@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { X } from "lucide-react"
 import { Logo } from "@/components/Logo"
-import { bannerTargetsPage, type PromoPage, type PublicPromoBanner } from "@/lib/promo-banners"
+import {
+  bannerShowsOnDevice,
+  bannerTargetsPage,
+  MOBILE_MEDIA_QUERY,
+  pickByPriority,
+  type PromoPage,
+  type PublicPromoBanner,
+} from "@/lib/promo-banners"
 import { PromoLink, PromoPicture } from "./PromoVisual"
 
 // Full-screen promo formats:
@@ -47,13 +54,17 @@ function markShown(banner: PublicPromoBanner) {
   else storageSet("session", `seen:${banner.id}`, "1")
 }
 
+/** Homepage, a category page (/culture) or an article (/culture/some-article). */
 function pageFor(pathname: string, categories: { id: string; slug: string }[]): PromoPage | null {
   if (pathname === "/") return { type: "home" }
   const segments = pathname.split("/").filter(Boolean)
-  if (segments.length !== 1) return null
+  if (segments.length < 1 || segments.length > 2) return null
   const slug = decodeURIComponent(segments[0])
   const category = categories.find((c) => c.slug === slug)
-  return category ? { type: "category", categoryId: category.id } : null
+  if (!category) return null
+  return segments.length === 1
+    ? { type: "category", categoryId: category.id }
+    : { type: "article", categoryId: category.id }
 }
 
 export function PromoOverlays({
@@ -78,10 +89,15 @@ export function PromoOverlays({
       const page = pageFor(pathname, categories)
       if (!page) return
 
-      const eligible = banners.filter((b) => bannerTargetsPage(b, page) && canShow(b))
+      const isMobile = window.matchMedia(MOBILE_MEDIA_QUERY).matches
+      const eligible = banners.filter(
+        (b) => bannerTargetsPage(b, page) && bannerShowsOnDevice(b, isMobile) && canShow(b)
+      )
       const takeoverFormat = firstViewOfSession ? "prestitial" : "interstitial"
+      // Per visitor: the highest-priority banner of the format, chosen by weight among equals.
       const pick =
-        eligible.find((b) => b.format === takeoverFormat) ?? eligible.find((b) => b.format === "special_boost")
+        pickByPriority(eligible.filter((b) => b.format === takeoverFormat)) ??
+        pickByPriority(eligible.filter((b) => b.format === "special_boost"))
       if (!pick) return
 
       markShown(pick)
@@ -122,7 +138,7 @@ function useModal(onClose: () => void) {
 }
 
 /** Prestitial / interstitial: page-covering takeover with a countdown and "continue to site". */
-function Takeover({ banner, onClose }: { banner: PublicPromoBanner; onClose: () => void }) {
+export function Takeover({ banner, onClose }: { banner: PublicPromoBanner; onClose: () => void }) {
   const closeRef = useModal(onClose)
   const [secondsLeft, setSecondsLeft] = useState(AUTO_CLOSE_SECONDS)
 
@@ -181,12 +197,17 @@ function Takeover({ banner, onClose }: { banner: PublicPromoBanner; onClose: () 
             Διαφήμιση
           </span>
         )}
-        <PromoLink banner={banner} onClick={onClose} className="block min-h-0 max-w-full overflow-hidden rounded-xl">
+        <PromoLink
+          banner={banner}
+          placement={banner.format === "prestitial" ? "prestitial" : "interstitial"}
+          onClick={onClose}
+          className="block min-h-0 max-w-full overflow-hidden rounded-xl"
+        >
           <PromoPicture
             banner={banner}
             eager
             sizes="(max-width: 1440px) 92vw, 1320px"
-            className="mx-auto block h-auto max-h-[calc(100dvh-8rem)] w-[var(--promo-mw)] max-w-full object-contain md:w-[var(--promo-w)]"
+            className="mx-auto block h-auto max-h-[calc(100dvh-8rem)] w-[var(--promo-mw)] max-w-[min(100%,calc((100dvh-8rem)*var(--promo-mar)))] object-contain md:w-[var(--promo-w)] md:max-w-[min(100%,calc((100dvh-8rem)*var(--promo-ar)))]"
           />
         </PromoLink>
       </div>
@@ -203,7 +224,7 @@ function Takeover({ banner, onClose }: { banner: PublicPromoBanner; onClose: () 
 }
 
 /** Special Boost: full-screen popup with the visual over a dimmed page. */
-function SpecialBoost({ banner, onClose }: { banner: PublicPromoBanner; onClose: () => void }) {
+export function SpecialBoost({ banner, onClose }: { banner: PublicPromoBanner; onClose: () => void }) {
   const closeRef = useModal(onClose)
 
   return (
@@ -227,12 +248,17 @@ function SpecialBoost({ banner, onClose }: { banner: PublicPromoBanner; onClose:
         >
           <X size={18} />
         </button>
-        <PromoLink banner={banner} onClick={onClose} className="block overflow-hidden rounded-2xl shadow-2xl">
+        <PromoLink
+          banner={banner}
+          placement="special_boost"
+          onClick={onClose}
+          className="block overflow-hidden rounded-2xl shadow-2xl"
+        >
           <PromoPicture
             banner={banner}
             eager
             sizes="(max-width: 1280px) 92vw, 1200px"
-            className="block h-auto max-h-[calc(100dvh-4rem)] w-[var(--promo-mw)] max-w-[min(92vw,1200px)] object-contain md:w-[var(--promo-w)]"
+            className="block h-auto max-h-[calc(100dvh-4rem)] w-[var(--promo-mw)] max-w-[min(92vw,1200px,calc((100dvh-4rem)*var(--promo-mar)))] object-contain md:w-[var(--promo-w)] md:max-w-[min(92vw,1200px,calc((100dvh-4rem)*var(--promo-ar)))]"
           />
         </PromoLink>
         <p className="mt-2 text-center text-[10px] font-medium uppercase tracking-[0.2em] text-white/60">

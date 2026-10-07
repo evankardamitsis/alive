@@ -22,6 +22,12 @@
   --fg-2:      #555555;
   --fg-3:      #999999;
   --border:    #E2E1DC;
+  /* Chart series (validated colour-blind safe, in this order) + status */
+  --viz-1:     #2a78d6;
+  --viz-2:     #eb6834;
+  --viz-3:     #1baf7a;
+  --viz-good:  #0ca30c;
+  --viz-bad:   #d03b3b;
   color-scheme: light;
 }
 
@@ -34,6 +40,9 @@
   --fg-2:      #B8B8B4;
   --fg-3:      #6A6A66;
   --border:    #2C2C2A;
+  --viz-1:     #3987e5;
+  --viz-2:     #d95926;
+  --viz-3:     #199e70;
   color-scheme: dark;
 }
 

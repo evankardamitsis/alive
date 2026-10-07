@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
-import { LayoutDashboard, FileText, Image, Users, Tag, UsersRound, Megaphone, Menu, X, ExternalLink } from "lucide-react"
+import { LayoutDashboard, FileText, Image, Users, Tag, UsersRound, Megaphone, BarChart3, Menu, X, ExternalLink } from "lucide-react"
 import { Logo } from "@/components/Logo"
 import { SignOutButton } from "@/components/admin/SignOutButton"
 
@@ -14,6 +14,7 @@ const SIDEBAR_LINKS = [
   { label: "Authors", href: "/admin/authors", icon: Users },
   { label: "Categories", href: "/admin/categories", icon: Tag },
   { label: "Promo Banners", href: "/admin/banners", icon: Megaphone },
+  { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { label: "Team", href: "/admin/team", icon: UsersRound },
 ]
 

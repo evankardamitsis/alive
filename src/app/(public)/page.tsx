@@ -13,7 +13,7 @@ import {
 } from "@/lib/metadata"
 import type { PostWithRelations } from "@/types"
 import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
-import { PromoRails, PromoInFeed, inlineBannersFor, bannerForSlot } from "@/components/promo/PromoPlacements"
+import { PromoRails, PromoInFeed, inlineBannersFor } from "@/components/promo/PromoPlacements"
 
 export const revalidate = 60
 
@@ -98,7 +98,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <PromoInFeed banner={bannerForSlot(promos, 0)} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-10" />
+      <PromoInFeed banners={promos} slot={0} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-10" />
 
       {/* ── Latest ── */}
       {latest.length > 0 && (
@@ -113,7 +113,7 @@ export default async function HomePage() {
       )}
 
       {latest.length > 0 && (
-        <PromoInFeed banner={bannerForSlot(promos, 1)} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12" />
+        <PromoInFeed banners={promos} slot={1} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12" />
       )}
 
       {/* ── Category spotlights ── */}
@@ -209,7 +209,8 @@ export default async function HomePage() {
           )}
           {sectionIndex % 2 === 1 && sectionIndex < spotlights.length - 1 && (
             <PromoInFeed
-              banner={bannerForSlot(promos, 2 + Math.floor(sectionIndex / 2))}
+              banners={promos}
+              slot={2 + Math.floor(sectionIndex / 2)}
               className="mt-12"
             />
           )}

@@ -82,6 +82,12 @@ export type PromoBannerFormat = "standard" | "interstitial" | "prestitial" | "sp
 
 export type PromoBannerCategoryScope = "none" | "all" | "selected"
 
+/** Article pages: none, all, or only articles in the banner's targeted categories */
+export type PromoBannerArticleScope = "none" | "all" | "categories"
+
+/** desktop = 768px and up, mobile = below 768px */
+export type PromoBannerDevice = "all" | "desktop" | "mobile"
+
 export interface PromoBanner {
   id: string
   /** Internal name, shown only in admin */
@@ -103,8 +109,15 @@ export interface PromoBanner {
   show_on_home: boolean
   category_scope: PromoBannerCategoryScope
   category_ids: string[]
+  article_scope: PromoBannerArticleScope
+  device: PromoBannerDevice
+  /** The banner stops showing once either total is reached (null = no cap) */
+  max_impressions: number | null
+  max_clicks: number | null
   /** Higher shows first */
   priority: number
+  /** Share among banners of the same priority: 2 = shown about twice as often as 1 */
+  weight: number
   is_active: boolean
   created_at: string
   updated_at: string

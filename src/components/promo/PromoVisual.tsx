@@ -1,8 +1,10 @@
 import { getImageProps } from "next/image"
-import { isExternalUrl, isGifUrl, type PublicPromoBanner } from "@/lib/promo-banners"
+import { isGifUrl, MOBILE_MEDIA_QUERY, type PublicPromoBanner } from "@/lib/promo-banners"
+
+export { PromoLink } from "./PromoLink"
 
 /** Below this width the mobile visual (if any) is used. Matches Tailwind's `md`. */
-const MOBILE_MEDIA = "(max-width: 767px)"
+const MOBILE_MEDIA = MOBILE_MEDIA_QUERY
 
 // Fallback intrinsic size for banners saved without dimensions; the real ratio wins once loaded.
 const FALLBACK = { width: 1200, height: 628 }
@@ -61,6 +63,13 @@ export function PromoPicture({
     ? imageProps(banner.mobile_image_url, banner.mobile_image_width, banner.mobile_image_height, mobileSizes, alt, eager)
     : null
 
+  const mobileSize = banner.mobile_image_url
+    ? {
+        width: banner.mobile_image_width ?? FALLBACK.width,
+        height: banner.mobile_image_height ?? FALLBACK.height,
+      }
+    : { width: banner.image_width ?? FALLBACK.width, height: banner.image_height ?? FALLBACK.height }
+
   return (
     <picture>
       {mobile && (
@@ -84,39 +93,16 @@ export function PromoPicture({
           {
             ...keyRest.style,
             "--promo-w": `${banner.image_width ?? FALLBACK.width}px`,
-            "--promo-mw": `${(banner.mobile_image_url ? banner.mobile_image_width : banner.image_width) ?? FALLBACK.width}px`,
+            "--promo-mw": `${mobileSize.width}px`,
+            // Aspect ratios, so full-screen formats can cap their width by the available height
+            // (otherwise a height-capped visual keeps its full width and gets letterboxed).
+            "--promo-ar": `${banner.image_width ?? FALLBACK.width} / ${banner.image_height ?? FALLBACK.height}`,
+            "--promo-mar": `${mobileSize.width} / ${mobileSize.height}`,
             ...style,
           } as React.CSSProperties
         }
       />
     </picture>
-  )
-}
-
-/** Clickable wrapper that sends the visitor to the banner's destination. */
-export function PromoLink({
-  banner,
-  className,
-  children,
-  onClick,
-}: {
-  banner: PublicPromoBanner
-  className?: string
-  children: React.ReactNode
-  onClick?: () => void
-}) {
-  const external = isExternalUrl(banner.destination_url)
-  return (
-    <a
-      href={banner.destination_url}
-      target={external ? "_blank" : undefined}
-      rel={external ? "sponsored noopener" : "sponsored"}
-      className={className}
-      onClick={onClick}
-      data-promo-id={banner.id}
-    >
-      {children}
-    </a>
   )
 }
 

@@ -1,9 +1,31 @@
 import { unstable_cache } from "next/cache"
 import { createPublicClient } from "./public"
+import { createAdminClient } from "./admin"
 import { PROMO_BANNERS_CACHE_TAG, type PublicPromoBanner } from "@/lib/promo-banners"
 
 const PUBLIC_SELECT =
-  "id, image_url, image_width, image_height, mobile_image_url, mobile_image_width, mobile_image_height, alt_text, destination_url, format, show_on_home, category_scope, category_ids"
+  "id, image_url, image_width, image_height, mobile_image_url, mobile_image_width, mobile_image_height, alt_text, destination_url, format, show_on_home, category_scope, category_ids, article_scope, device, priority, weight, max_impressions, max_clicks"
+
+type LiveRow = PublicPromoBanner & { max_impressions: number | null; max_clicks: number | null }
+
+/** All-time impression / click totals per banner, for banners that have a cap. */
+async function bannerTotals(ids: string[]) {
+  const totals = new Map<string, { impressions: number; clicks: number }>()
+  if (ids.length === 0) return totals
+  // site_events is service-role only; this runs on the server inside the cached fetch.
+  const { data, error } = await createAdminClient().rpc("analytics_banner_stats", { p_from: null, p_to: null })
+  if (error) {
+    console.error("Failed to load promo banner totals:", error.message)
+    return totals
+  }
+  for (const row of (data ?? []) as { banner_id: string; impressions: number; clicks: number }[]) {
+    const t = totals.get(row.banner_id) ?? { impressions: 0, clicks: 0 }
+    t.impressions += Number(row.impressions)
+    t.clicks += Number(row.clicks)
+    totals.set(row.banner_id, t)
+  }
+  return totals
+}
 
 async function fetchLivePromoBanners(): Promise<PublicPromoBanner[]> {
   const supabase = createPublicClient()
@@ -23,10 +45,32 @@ async function fetchLivePromoBanners(): Promise<PublicPromoBanner[]> {
     console.error("Failed to load promo banners:", error.message)
     return []
   }
-  return (data ?? []) as PublicPromoBanner[]
+
+  const rows = (data ?? []) as LiveRow[]
+  const capped = rows.filter((b) => b.max_impressions != null || b.max_clicks != null)
+  const totals = await bannerTotals(capped.map((b) => b.id))
+
+  return rows
+    .filter((b) => {
+      const t = totals.get(b.id)
+      if (!t) return true
+      if (b.max_impressions != null && t.impressions >= b.max_impressions) return false
+      if (b.max_clicks != null && t.clicks >= b.max_clicks) return false
+      return true
+    })
+    // Caps are server-side only; keep them out of the page HTML.
+    .map((row) => {
+      const banner: Partial<LiveRow> = { ...row }
+      delete banner.max_impressions
+      delete banner.max_clicks
+      return banner as PublicPromoBanner
+    })
 }
 
-/** All banners live right now, highest priority first. Cached for 60s and busted on admin edits. */
+/**
+ * All banners live right now, highest priority first, minus any that reached their cap.
+ * Cached for 60s and busted on admin edits, so a capped banner stops within about a minute.
+ */
 export async function getLivePromoBanners(): Promise<PublicPromoBanner[]> {
   return unstable_cache(fetchLivePromoBanners, ["getLivePromoBanners"], {
     tags: [PROMO_BANNERS_CACHE_TAG],

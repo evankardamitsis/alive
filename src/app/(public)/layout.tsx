@@ -8,6 +8,7 @@ import { getAllCategories } from "@/lib/supabase/queries"
 import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
 import { isFullscreenFormat } from "@/lib/promo-banners"
 import { PromoOverlays } from "@/components/promo/PromoOverlays"
+import { PageviewTracker } from "@/components/analytics/PageviewTracker"
 
 export const metadata: Metadata = {
   alternates: {
@@ -60,6 +61,7 @@ export default async function PublicLayout({ children }: { children: React.React
       <Navbar />
       <main className="flex-1 pt-16">{children}</main>
       <Footer />
+      <PageviewTracker />
       {takeovers.length > 0 && (
         <PromoOverlays
           banners={takeovers}

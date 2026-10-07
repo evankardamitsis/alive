@@ -18,6 +18,8 @@ const dimension = z.number().int().positive().max(20000).nullable().optional().t
 
 const isoDate = z.iso.datetime({ offset: true, message: "Invalid date" })
 
+const cap = z.number().int().positive().max(1_000_000_000).nullable().optional().transform((v) => v ?? null)
+
 export const promoBannerSchema = z
   .object({
     name: z.string().trim().min(1, "Name is required").max(120),
@@ -41,7 +43,12 @@ export const promoBannerSchema = z
     show_on_home: z.boolean(),
     category_scope: z.enum(["none", "all", "selected"]),
     category_ids: z.array(z.uuid()).default([]),
+    article_scope: z.enum(["none", "all", "categories"]).default("none"),
+    device: z.enum(["all", "desktop", "mobile"]).default("all"),
+    max_impressions: cap,
+    max_clicks: cap,
     priority: z.number().int().min(-100).max(100).default(0),
+    weight: z.number().int().min(1).max(10).default(1),
     is_active: z.boolean().default(true),
   })
   .refine((b) => new Date(b.ends_at) > new Date(b.starts_at), {
@@ -52,7 +59,11 @@ export const promoBannerSchema = z
     message: "Pick at least one category",
     path: ["category_ids"],
   })
-  .refine((b) => b.show_on_home || b.category_scope !== "none", {
+  .refine((b) => b.article_scope !== "categories" || b.category_scope !== "none", {
+    message: "“Articles in the categories above” needs category targeting (all or selected)",
+    path: ["article_scope"],
+  })
+  .refine((b) => b.show_on_home || b.category_scope !== "none" || b.article_scope !== "none", {
     message: "Choose at least one page where the banner appears",
     path: ["show_on_home"],
   })

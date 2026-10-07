@@ -7,7 +7,7 @@ import { pageMetadata } from "@/lib/metadata"
 import { JsonLd } from "@/components/JsonLd"
 import { getSiteUrl, siteUrl } from "@/lib/site"
 import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
-import { PromoRails, PromoInFeed, inlineBannersFor, bannerForSlot } from "@/components/promo/PromoPlacements"
+import { PromoRails, PromoInFeed, inlineBannersFor } from "@/components/promo/PromoPlacements"
 
 /** In-feed promo after every N grid cards (divisible by 1–4 columns so rows stay full). */
 const PROMO_EVERY = 12
@@ -134,20 +134,17 @@ export default async function CategoryPage({ params }: Props) {
               </div>
             )}
 
-            <PromoInFeed banner={bannerForSlot(promos, 0)} className="mb-12" />
+            <PromoInFeed banners={promos} slot={0} className="mb-12" />
 
             {/* Grid */}
             {rest.length > 0 && (
               <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {rest.map((post, i) => {
-                  const promo =
-                    (i + 1) % PROMO_EVERY === 0 && i < rest.length - 1
-                      ? bannerForSlot(promos, (i + 1) / PROMO_EVERY)
-                      : null
+                  const promoSlot = (i + 1) % PROMO_EVERY === 0 && i < rest.length - 1 ? (i + 1) / PROMO_EVERY : null
                   return (
                     <Fragment key={post.id}>
                       <ArticleCard post={post} />
-                      {promo && <PromoInFeed banner={promo} className="col-span-full" />}
+                      {promoSlot !== null && <PromoInFeed banners={promos} slot={promoSlot} className="col-span-full" />}
                     </Fragment>
                   )
                 })}

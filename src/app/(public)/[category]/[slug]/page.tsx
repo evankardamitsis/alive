@@ -12,6 +12,8 @@ import { CategoryPill } from "@/components/article/ArticleCard"
 import { ReadingProgress } from "@/components/article/ReadingProgress"
 import { ShareButtons } from "@/components/article/ShareButtons"
 import { JsonLd } from "@/components/JsonLd"
+import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
+import { PromoRails, PromoInFeed, inlineBannersFor } from "@/components/promo/PromoPlacements"
 
 export const revalidate = 60
 export const dynamicParams = true
@@ -70,7 +72,12 @@ export default async function ArticlePage({ params }: Props) {
     permanentRedirect(`/${post.category.slug}/${post.slug}`)
   }
 
-  const [related, adjacent] = await Promise.all([getRelatedPosts(post, 4), getAdjacentPosts(post)])
+  const [related, adjacent, liveBanners] = await Promise.all([
+    getRelatedPosts(post, 4),
+    getAdjacentPosts(post),
+    getLivePromoBanners(),
+  ])
+  const promos = inlineBannersFor(liveBanners, { type: "article", categoryId: post.category.id })
   const readTime = estimateReadTime(post.content)
   const excerpt = articleDescription(post.excerpt, post.content, 260)
   const postUrl = siteUrl(`/${post.category.slug}/${post.slug}`)
@@ -140,7 +147,7 @@ export default async function ArticlePage({ params }: Props) {
   }
 
   return (
-    <div>
+    <PromoRails banners={promos}>
       <JsonLd data={jsonLd} />
       <ReadingProgress />
 
@@ -250,6 +257,8 @@ export default async function ArticlePage({ params }: Props) {
                 __html: normalizeArticleImages(post.content),
               }}
             />
+
+            <PromoInFeed banners={promos} slot={0} className="mt-12" />
 
             {/* Tags */}
             {post.tags && post.tags.length > 0 && (
@@ -417,6 +426,6 @@ export default async function ArticlePage({ params }: Props) {
           </section>
         )}
       </div>
-    </div>
+    </PromoRails>
   )
 }
