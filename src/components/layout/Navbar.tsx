@@ -66,7 +66,7 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1 flex-1">
+          <nav className="hidden min-[1160px]:flex items-center gap-1 flex-1">
             {NAV_LINKS.map((link) => {
               const active = pathname.startsWith(link.href)
               return (
@@ -124,7 +124,7 @@ export function Navbar() {
 
             {/* Hamburger — animated */}
             <button
-              className="md:hidden p-2 rounded-full flex flex-col justify-center items-center gap-[5px]"
+              className="min-[1160px]:hidden p-2 rounded-full flex flex-col justify-center items-center gap-[5px]"
               style={{ color: "var(--fg-2)", width: 36, height: 36 }}
               onClick={() => setOpen((v) => !v)}
               aria-label={open ? "Close menu" : "Open menu"}
@@ -158,7 +158,7 @@ export function Navbar() {
 
       {/* Full-screen mobile menu */}
       <div
-        className="fixed inset-0 z-40 md:hidden flex flex-col"
+        className="fixed inset-0 z-40 min-[1160px]:hidden flex flex-col"
         style={{
           backgroundColor: "var(--bg)",
           opacity: open ? 1 : 0,
