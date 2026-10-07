@@ -195,7 +195,8 @@ export function Donut({ slices }: { slices: { label: string; value: number }[] }
   const shown = hover ?? 0
 
   return (
-    <div className="flex items-center gap-6">
+    // Legend under the donut: the devices card is narrow in the three-column layout.
+    <div className="flex flex-col items-center gap-5">
       <div className="relative h-36 w-36 shrink-0">
         <svg viewBox="0 0 140 140" className="h-full w-full -rotate-90" role="img" aria-label="Visitors by device">
           <circle cx={70} cy={70} r={R} fill="none" strokeWidth={16} style={{ stroke: "var(--bg-3)" }} />
@@ -225,7 +226,7 @@ export function Donut({ slices }: { slices: { label: string; value: number }[] }
           <span className="text-[11px]" style={{ color: "var(--fg-3)" }}>{slices[shown].label}</span>
         </div>
       </div>
-      <ul className="min-w-0 flex-1 space-y-2.5">
+      <ul className="w-full space-y-2.5">
         {slices.map((s, i) => (
           <li
             key={s.label}
@@ -237,7 +238,7 @@ export function Donut({ slices }: { slices: { label: string; value: number }[] }
               <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: SLICE_COLORS[i % SLICE_COLORS.length] }} />
               {s.label}
             </span>
-            <span className="tabular-nums" style={{ color: "var(--fg-2)" }}>
+            <span className="whitespace-nowrap tabular-nums" style={{ color: "var(--fg-2)" }}>
               {fmt(s.value)} <span style={{ color: "var(--fg-3)" }}>· {Math.round((s.value / total) * 100)}%</span>
             </span>
           </li>
