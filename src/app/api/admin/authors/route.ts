@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireAdminUser } from "@/lib/supabase/api-auth"
+import { pickAuthorFields } from "@/lib/supabase/author-payload"
 
 function slugify(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
@@ -8,9 +9,9 @@ function slugify(text: string) {
 
 export async function POST(req: NextRequest) {
   const { error: authError } = await requireAdminUser(); if (authError) return authError
-  const body = await req.json()
+  const body = pickAuthorFields(await req.json())
   const supabase = createAdminClient()
-  const slug = body.slug || slugify(body.name)
+  const slug = body.slug || slugify(String(body.name ?? ""))
   const { data, error } = await supabase
     .from("authors")
     .insert({ ...body, slug })

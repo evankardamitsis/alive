@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireAdminUser } from "@/lib/supabase/api-auth"
+import { isValidMediaFilename } from "@/lib/media-path"
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ name: string }> }) {
+  const { error: authError } = await requireAdminUser()
+  if (authError) return authError
   const { name } = await params
   const supabase = createAdminClient()
   const { error } = await supabase.storage.from("media").remove([decodeURIComponent(name)])
@@ -12,9 +15,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
 // Rename: move the file to a new path within the same folder
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ name: string }> }) {
+  const { error: authError } = await requireAdminUser()
+  if (authError) return authError
   const { name } = await params
   const { newName } = await req.json()
   if (!newName) return NextResponse.json({ error: "newName required" }, { status: 400 })
+  if (!isValidMediaFilename(newName)) return NextResponse.json({ error: "Invalid file name" }, { status: 400 })
 
   const oldPath = decodeURIComponent(name)
   // Keep the same folder prefix, only replace the filename

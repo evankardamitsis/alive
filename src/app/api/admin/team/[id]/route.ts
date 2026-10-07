@@ -3,8 +3,11 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { requireAdminUser } from "@/lib/supabase/api-auth"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error: authError } = await requireAdminUser({ adminOnly: true })
+  if (authError) return authError
   const { id } = await params
   const { role } = await req.json()
+  if (role !== "admin" && role !== "editor") return NextResponse.json({ error: "Invalid role" }, { status: 400 })
   const supabase = createAdminClient()
   const { error } = await supabase.auth.admin.updateUserById(id, {
     app_metadata: { role },
@@ -14,6 +17,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error: authError } = await requireAdminUser({ adminOnly: true })
+  if (authError) return authError
   const { id } = await params
   const supabase = createAdminClient()
   // Remove role instead of deleting the account

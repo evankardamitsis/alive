@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireAdminUser } from "@/lib/supabase/api-auth"
+import { isValidMediaFilename } from "@/lib/media-path"
 
 export async function POST(req: NextRequest) {
   const { error: authError } = await requireAdminUser(); if (authError) return authError
@@ -9,6 +10,7 @@ export async function POST(req: NextRequest) {
   const name = fd.get("name") as string | null
 
   if (!file || !name) return NextResponse.json({ error: "Missing file or name" }, { status: 400 })
+  if (!isValidMediaFilename(name)) return NextResponse.json({ error: "Invalid file name" }, { status: 400 })
 
   const supabase = createAdminClient()
   const { error } = await supabase.storage

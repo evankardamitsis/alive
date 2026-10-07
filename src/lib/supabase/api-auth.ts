@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
-export async function requireAdminUser() {
+export async function requireAdminUser({ adminOnly = false }: { adminOnly?: boolean } = {}) {
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,7 +21,8 @@ export async function requireAdminUser() {
   }
 
   const role = user.app_metadata?.role as string | undefined
-  if (role !== "admin" && role !== "editor") {
+  const allowed = adminOnly ? role === "admin" : role === "admin" || role === "editor"
+  if (!allowed) {
     return { user: null, error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
   }
 
