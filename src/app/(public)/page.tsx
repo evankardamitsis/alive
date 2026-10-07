@@ -12,6 +12,8 @@ import {
   SITE_TAGLINE,
 } from "@/lib/metadata"
 import type { PostWithRelations } from "@/types"
+import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
+import { PromoRails, PromoInFeed, inlineBannersFor, bannerForSlot } from "@/components/promo/PromoPlacements"
 
 export const revalidate = 60
 
@@ -42,10 +44,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const [heroPost, recentForSidebar] = await Promise.all([
+  const [heroPost, recentForSidebar, liveBanners] = await Promise.all([
     getHeroPost(),
     getPublishedPosts({ limit: 5 }),
+    getLivePromoBanners(),
   ])
+  const promos = inlineBannersFor(liveBanners, { type: "home" })
 
   const hero = heroPost ?? recentForSidebar[0] ?? null
   const sidebarPosts = recentForSidebar
@@ -59,7 +63,7 @@ export default async function HomePage() {
   ])
 
   return (
-    <div>
+    <PromoRails banners={promos}>
       <h1 className="sr-only">Alive Magazine — μουσική, συνεντεύξεις, κριτικές, live και πολιτισμός</h1>
       {/* ── Hero split ── */}
       <section className="max-w-[1600px] mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-6 sm:pb-8">
@@ -94,6 +98,8 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <PromoInFeed banner={bannerForSlot(promos, 0)} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-10" />
+
       {/* ── Latest ── */}
       {latest.length > 0 && (
         <section className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12">
@@ -106,8 +112,12 @@ export default async function HomePage() {
         </section>
       )}
 
+      {latest.length > 0 && (
+        <PromoInFeed banner={bannerForSlot(promos, 1)} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12" />
+      )}
+
       {/* ── Category spotlights ── */}
-      {spotlights.map(({ category, posts }) => (
+      {spotlights.map(({ category, posts }, sectionIndex) => (
         <section key={category.id} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12">
           <SectionLabel label={category.name} href={`/${category.slug}`} color={category.color ?? undefined} />
 
@@ -197,9 +207,15 @@ export default async function HomePage() {
               </div>
             </>
           )}
+          {sectionIndex % 2 === 1 && sectionIndex < spotlights.length - 1 && (
+            <PromoInFeed
+              banner={bannerForSlot(promos, 2 + Math.floor(sectionIndex / 2))}
+              className="mt-12"
+            />
+          )}
         </section>
       ))}
-    </div>
+    </PromoRails>
   )
 }
 

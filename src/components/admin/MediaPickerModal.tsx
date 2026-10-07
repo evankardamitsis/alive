@@ -15,9 +15,10 @@ interface Props {
   open: boolean
   onClose: () => void
   onSelect: (url: string) => void
+  title?: string
 }
 
-export function MediaPickerModal({ open, onClose, onSelect }: Props) {
+export function MediaPickerModal({ open, onClose, onSelect, title = "Choose cover image" }: Props) {
   const [items, setItems] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -86,7 +87,7 @@ export function MediaPickerModal({ open, onClose, onSelect }: Props) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
-          <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Choose cover image</h2>
+          <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>{title}</h2>
           <div className="flex items-center gap-2">
             <label
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors"

@@ -77,3 +77,35 @@ export interface PlaylistItem {
   artist: string
   added_at: string
 }
+
+export type PromoBannerFormat = "standard" | "interstitial" | "prestitial" | "special_boost"
+
+export type PromoBannerCategoryScope = "none" | "all" | "selected"
+
+export interface PromoBanner {
+  id: string
+  /** Internal name, shown only in admin */
+  name: string
+  /** Key visual — used on every screen when no mobile visual is set */
+  image_url: string
+  /** Intrinsic size of the key visual (lets the site reserve space and pick the right srcset) */
+  image_width: number | null
+  image_height: number | null
+  /** Optional mobile-specific visual */
+  mobile_image_url: string | null
+  mobile_image_width: number | null
+  mobile_image_height: number | null
+  alt_text: string | null
+  destination_url: string
+  format: PromoBannerFormat
+  starts_at: string
+  ends_at: string
+  show_on_home: boolean
+  category_scope: PromoBannerCategoryScope
+  category_ids: string[]
+  /** Higher shows first */
+  priority: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}

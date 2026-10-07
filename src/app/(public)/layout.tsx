@@ -4,6 +4,10 @@ import { Footer } from "@/components/layout/Footer"
 import { JsonLd } from "@/components/JsonLd"
 import { DEFAULT_DESCRIPTION, SITE_NAME } from "@/lib/metadata"
 import { getSiteUrl, siteUrl } from "@/lib/site"
+import { getAllCategories } from "@/lib/supabase/queries"
+import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
+import { isFullscreenFormat } from "@/lib/promo-banners"
+import { PromoOverlays } from "@/components/promo/PromoOverlays"
 
 export const metadata: Metadata = {
   alternates: {
@@ -11,7 +15,13 @@ export const metadata: Metadata = {
   },
 }
 
-export default function PublicLayout({ children }: { children: React.ReactNode }) {
+export default async function PublicLayout({ children }: { children: React.ReactNode }) {
+  const [banners, categories] = await Promise.all([
+    getLivePromoBanners(),
+    getAllCategories().catch(() => []),
+  ])
+  const takeovers = banners.filter((b) => isFullscreenFormat(b.format))
+
   const baseUrl = getSiteUrl()
   const organizationId = `${baseUrl}/#organization`
   const websiteId = `${baseUrl}/#website`
@@ -50,6 +60,12 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <Navbar />
       <main className="flex-1 pt-16">{children}</main>
       <Footer />
+      {takeovers.length > 0 && (
+        <PromoOverlays
+          banners={takeovers}
+          categories={categories.map(({ id, slug }) => ({ id, slug }))}
+        />
+      )}
     </>
   )
 }

@@ -1,3 +1,4 @@
+import { Fragment } from "react"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { getPublishedPosts, getAllCategories, getCategoryFeaturedPost } from "@/lib/supabase/queries"
@@ -5,6 +6,11 @@ import { ArticleCard } from "@/components/article/ArticleCard"
 import { pageMetadata } from "@/lib/metadata"
 import { JsonLd } from "@/components/JsonLd"
 import { getSiteUrl, siteUrl } from "@/lib/site"
+import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
+import { PromoRails, PromoInFeed, inlineBannersFor, bannerForSlot } from "@/components/promo/PromoPlacements"
+
+/** In-feed promo after every N grid cards (divisible by 1–4 columns so rows stay full). */
+const PROMO_EVERY = 12
 
 export const revalidate = 60
 
@@ -40,10 +46,12 @@ export default async function CategoryPage({ params }: Props) {
   const cat = categories.find((c) => c.slug === category)
   if (!cat) notFound()
 
-  const [featuredPost, recent] = await Promise.all([
+  const [featuredPost, recent, liveBanners] = await Promise.all([
     getCategoryFeaturedPost(category),
     getPublishedPosts({ categorySlug: category, limit: 26 }),
+    getLivePromoBanners(),
   ])
+  const promos = inlineBannersFor(liveBanners, { type: "category", categoryId: cat.id })
 
   const featured = featuredPost ?? recent[0] ?? null
   const rest = recent.filter((p) => p.id !== featured?.id)
@@ -87,7 +95,7 @@ export default async function CategoryPage({ params }: Props) {
   }
 
   return (
-    <div>
+    <PromoRails banners={promos}>
       <JsonLd data={jsonLd} />
       {/* ── Category header ── */}
       <div className="border-b" style={{ borderColor: "var(--border)" }}>
@@ -126,17 +134,28 @@ export default async function CategoryPage({ params }: Props) {
               </div>
             )}
 
+            <PromoInFeed banner={bannerForSlot(promos, 0)} className="mb-12" />
+
             {/* Grid */}
             {rest.length > 0 && (
               <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {rest.map((post) => (
-                  <ArticleCard key={post.id} post={post} />
-                ))}
+                {rest.map((post, i) => {
+                  const promo =
+                    (i + 1) % PROMO_EVERY === 0 && i < rest.length - 1
+                      ? bannerForSlot(promos, (i + 1) / PROMO_EVERY)
+                      : null
+                  return (
+                    <Fragment key={post.id}>
+                      <ArticleCard post={post} />
+                      {promo && <PromoInFeed banner={promo} className="col-span-full" />}
+                    </Fragment>
+                  )
+                })}
               </div>
             )}
           </>
         )}
       </div>
-    </div>
+    </PromoRails>
   )
 }
