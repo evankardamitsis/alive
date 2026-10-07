@@ -77,7 +77,7 @@ export function PromoInFeed({
         <PromoPicture
           banner={banner}
           sizes="(max-width: 767px) 100vw, 970px"
-          className="mx-auto block h-auto max-h-[600px] w-auto max-w-full object-contain"
+          className="mx-auto block h-auto max-h-[600px] w-[var(--promo-mw)] max-w-full object-contain md:w-[var(--promo-w)]"
         />
       </PromoLink>
     </aside>

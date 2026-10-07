@@ -7,13 +7,21 @@ const MOBILE_MEDIA = "(max-width: 767px)"
 // Fallback intrinsic size for banners saved without dimensions; the real ratio wins once loaded.
 const FALLBACK = { width: 1200, height: 628 }
 
-function imageProps(src: string, width: number | null, height: number | null, sizes: string, alt: string) {
+function imageProps(
+  src: string,
+  width: number | null,
+  height: number | null,
+  sizes: string,
+  alt: string,
+  eager?: boolean
+) {
   return getImageProps({
     src,
     alt,
     width: width ?? FALLBACK.width,
     height: height ?? FALLBACK.height,
     sizes,
+    loading: eager ? "eager" : "lazy",
     // Animated GIFs are served as-is (the optimiser would only return the original anyway).
     unoptimized: isGifUrl(src),
   }).props
@@ -46,10 +54,11 @@ export function PromoPicture({
     banner.image_width,
     banner.image_height,
     sizes,
-    alt
+    alt,
+    eager
   )
   const mobile = banner.mobile_image_url
-    ? imageProps(banner.mobile_image_url, banner.mobile_image_width, banner.mobile_image_height, mobileSizes, alt)
+    ? imageProps(banner.mobile_image_url, banner.mobile_image_width, banner.mobile_image_height, mobileSizes, alt, eager)
     : null
 
   return (
@@ -67,10 +76,18 @@ export function PromoPicture({
       <img
         {...keyRest}
         srcSet={keySrcSet}
-        loading={eager ? "eager" : "lazy"}
         decoding="async"
         className={className}
-        style={{ ...keyRest.style, ...style }}
+        // Natural display widths as CSS vars so callers can size the visual to its real width
+        // (srcset candidates are wider than small banners and would otherwise shrink them).
+        style={
+          {
+            ...keyRest.style,
+            "--promo-w": `${banner.image_width ?? FALLBACK.width}px`,
+            "--promo-mw": `${(banner.mobile_image_url ? banner.mobile_image_width : banner.image_width) ?? FALLBACK.width}px`,
+            ...style,
+          } as React.CSSProperties
+        }
       />
     </picture>
   )

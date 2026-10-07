@@ -186,7 +186,7 @@ function Takeover({ banner, onClose }: { banner: PublicPromoBanner; onClose: () 
             banner={banner}
             eager
             sizes="(max-width: 1440px) 92vw, 1320px"
-            className="mx-auto block h-auto max-h-[calc(100dvh-8rem)] w-auto max-w-full object-contain"
+            className="mx-auto block h-auto max-h-[calc(100dvh-8rem)] w-[var(--promo-mw)] max-w-full object-contain md:w-[var(--promo-w)]"
           />
         </PromoLink>
       </div>
@@ -232,7 +232,7 @@ function SpecialBoost({ banner, onClose }: { banner: PublicPromoBanner; onClose:
             banner={banner}
             eager
             sizes="(max-width: 1280px) 92vw, 1200px"
-            className="block h-auto max-h-[calc(100dvh-4rem)] w-auto max-w-[min(92vw,1200px)] object-contain"
+            className="block h-auto max-h-[calc(100dvh-4rem)] w-[var(--promo-mw)] max-w-[min(92vw,1200px)] object-contain md:w-[var(--promo-w)]"
           />
         </PromoLink>
         <p className="mt-2 text-center text-[10px] font-medium uppercase tracking-[0.2em] text-white/60">
