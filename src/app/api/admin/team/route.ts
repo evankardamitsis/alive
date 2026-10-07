@@ -23,9 +23,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { error: authError } = await requireAdminUser(); if (authError) return authError
+  const { error: authError } = await requireAdminUser({ adminOnly: true }); if (authError) return authError
   const { email, role } = await req.json()
   if (!email || !role) return NextResponse.json({ error: "Missing email or role" }, { status: 400 })
+  if (role !== "admin" && role !== "editor") return NextResponse.json({ error: "Invalid role" }, { status: 400 })
 
   const supabase = createAdminClient()
 
