@@ -3,6 +3,7 @@ import { ArrowDownRight, ArrowUpRight, Eye, Megaphone, MousePointerClick, Users 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { PROMO_FORMAT_LABELS, promoBannerStatus } from "@/lib/promo-banners"
 import { Donut, Sparkline, TrafficChart, type DailyPoint } from "@/components/admin/analytics/Charts"
+import { InternalTrafficToggle } from "@/components/admin/analytics/InternalTrafficToggle"
 import type { PromoBanner } from "@/types"
 
 export const revalidate = 0
@@ -301,6 +302,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           })}
         </nav>
       </div>
+
+      <InternalTrafficToggle />
 
       {setupError && (
         <p className="rounded-xl p-4 text-sm text-red-500" style={{ border: "1px solid var(--border)" }}>

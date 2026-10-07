@@ -2,11 +2,29 @@ import { createHash } from "node:crypto"
 import { after, userAgent, type NextRequest } from "next/server"
 import { z } from "zod"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { INTERNAL_COOKIE } from "@/lib/track"
 
 // First-party, cookie-less analytics beacon (see supabase/migrations/0007_site_analytics.sql).
 // Public on purpose: the site posts page views and promo impressions/clicks here.
 
 const MAX_BODY_BYTES = 2048
+
+/**
+ * Only the live site records traffic: previews and local dev would mix test visits into the
+ * real numbers. Set ANALYTICS_ENABLED=true to record elsewhere (e.g. to test tracking locally).
+ */
+const RECORDING = process.env.VERCEL_ENV === "production" || process.env.ANALYTICS_ENABLED === "true"
+
+/**
+ * Staff: browsers marked by the admin, or anyone signed in (only staff have accounts).
+ * An explicit "count this browser" choice ("0") wins over being signed in.
+ */
+function isInternal(req: NextRequest) {
+  const flag = req.cookies.get(INTERNAL_COOKIE)?.value
+  if (flag === "1") return true
+  if (flag === "0") return false
+  return req.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"))
+}
 
 const eventSchema = z.object({
   type: z.enum(["pageview", "impression", "click"]),
@@ -46,7 +64,7 @@ function referrerHost(referrer: string | undefined, siteHost: string | null) {
 
 export async function POST(req: NextRequest) {
   const ua = userAgent(req)
-  if (ua.isBot) return new Response(null, { status: 204 })
+  if (!RECORDING || ua.isBot || isInternal(req)) return new Response(null, { status: 204 })
 
   const raw = await req.text()
   if (raw.length > MAX_BODY_BYTES) return new Response(null, { status: 413 })

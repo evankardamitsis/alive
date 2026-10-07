@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { AdminSidebar } from "@/components/admin/AdminSidebar"
+import { InternalVisitorMarker } from "@/components/analytics/InternalVisitorMarker"
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, noarchive: true },
@@ -9,6 +10,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div data-theme="light" className="flex h-screen overflow-hidden" style={{ backgroundColor: "var(--bg)" }}>
       <AdminSidebar />
+      <InternalVisitorMarker />
 
       {/* Main content — offset on mobile for the fixed top bar */}
       <div className="flex flex-1 flex-col overflow-hidden lg:ml-0">
