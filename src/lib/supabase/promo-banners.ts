@@ -1,10 +1,10 @@
 import { unstable_cache } from "next/cache"
 import { createPublicClient } from "./public"
 import { createAdminClient } from "./admin"
-import { PROMO_BANNERS_CACHE_TAG, type PublicPromoBanner } from "@/lib/promo-banners"
+import { ALL_PROMO_SPOTS, PROMO_BANNERS_CACHE_TAG, type PublicPromoBanner } from "@/lib/promo-banners"
 
 const PUBLIC_SELECT =
-  "id, image_url, image_width, image_height, mobile_image_url, mobile_image_width, mobile_image_height, alt_text, destination_url, format, show_on_home, category_scope, category_ids, article_scope, device, priority, weight, max_impressions, max_clicks"
+  "id, image_url, image_width, image_height, mobile_image_url, mobile_image_width, mobile_image_height, alt_text, destination_url, format, show_on_home, category_scope, category_ids, article_scope, device, placements, priority, weight, max_impressions, max_clicks"
 
 type LiveRow = PublicPromoBanner & { max_impressions: number | null; max_clicks: number | null }
 
@@ -60,7 +60,8 @@ async function fetchLivePromoBanners(): Promise<PublicPromoBanner[]> {
     })
     // Caps are server-side only; keep them out of the page HTML.
     .map((row) => {
-      const banner: Partial<LiveRow> = { ...row }
+      // Rows cached before a column existed may lack it; fall back to the column's default.
+      const banner: Partial<LiveRow> = { ...row, placements: row.placements ?? [...ALL_PROMO_SPOTS] }
       delete banner.max_impressions
       delete banner.max_clicks
       return banner as PublicPromoBanner
@@ -72,7 +73,8 @@ async function fetchLivePromoBanners(): Promise<PublicPromoBanner[]> {
  * Cached for 60s and busted on admin edits, so a capped banner stops within about a minute.
  */
 export async function getLivePromoBanners(): Promise<PublicPromoBanner[]> {
-  return unstable_cache(fetchLivePromoBanners, ["getLivePromoBanners"], {
+  // Bump the version when the selected columns change, so stale cached rows are never reused.
+  return unstable_cache(fetchLivePromoBanners, ["getLivePromoBanners", "v2"], {
     tags: [PROMO_BANNERS_CACHE_TAG],
     revalidate: 60,
   })()

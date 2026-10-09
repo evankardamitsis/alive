@@ -14,6 +14,7 @@ import {
 import type { PostWithRelations } from "@/types"
 import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
 import { PromoRails, PromoInFeed, inlineBannersFor } from "@/components/promo/PromoPlacements"
+import { planListingPage } from "@/lib/promo-plan"
 
 export const revalidate = 60
 
@@ -49,7 +50,7 @@ export default async function HomePage() {
     getPublishedPosts({ limit: 5 }),
     getLivePromoBanners(),
   ])
-  const promos = inlineBannersFor(liveBanners, { type: "home" })
+  const promos = planListingPage(inlineBannersFor(liveBanners, { type: "home" }))
 
   const hero = heroPost ?? recentForSidebar[0] ?? null
   const sidebarPosts = recentForSidebar
@@ -63,7 +64,7 @@ export default async function HomePage() {
   ])
 
   return (
-    <PromoRails banners={promos}>
+    <PromoRails left={promos.left} right={promos.right}>
       <h1 className="sr-only">Alive Magazine — μουσική, συνεντεύξεις, κριτικές, live και πολιτισμός</h1>
       {/* ── Hero split ── */}
       <section className="max-w-[1600px] mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-6 sm:pb-8">
@@ -98,7 +99,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <PromoInFeed banners={promos} slot={0} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-10" />
+      <PromoInFeed pick={promos.feed[0]} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-10" />
 
       {/* ── Latest ── */}
       {latest.length > 0 && (
@@ -113,7 +114,7 @@ export default async function HomePage() {
       )}
 
       {latest.length > 0 && (
-        <PromoInFeed banners={promos} slot={1} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12" />
+        <PromoInFeed pick={promos.feed[1]} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12" />
       )}
 
       {/* ── Category spotlights ── */}
@@ -208,11 +209,7 @@ export default async function HomePage() {
             </>
           )}
           {sectionIndex % 2 === 1 && sectionIndex < spotlights.length - 1 && (
-            <PromoInFeed
-              banners={promos}
-              slot={2 + Math.floor(sectionIndex / 2)}
-              className="mt-12"
-            />
+            <PromoInFeed pick={promos.feed[2 + Math.floor(sectionIndex / 2)]} className="mt-12" />
           )}
         </section>
       ))}

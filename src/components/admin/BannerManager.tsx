@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
@@ -15,24 +15,34 @@ import {
   ImagePlus,
   Monitor,
   Smartphone,
-  ExternalLink,
   Copy,
   Eye,
+  MoreHorizontal,
+  ChevronDown,
+  ExternalLink,
 } from "lucide-react"
 import { MediaPickerModal } from "@/components/admin/MediaPickerModal"
 import { BannerPreview } from "@/components/admin/BannerPreview"
 import { fromDateTimeLocalValue, toDateTimeLocalValue, formatDateTime } from "@/lib/datetime"
 import {
-  PROMO_ARTICLE_SCOPES,
+  ALL_PROMO_SPOTS,
   PROMO_DEVICES,
   PROMO_FORMATS,
   PROMO_FORMAT_LABELS,
+  PROMO_SPOTS,
   promoBannerStatus,
   type PromoBannerStatus,
   type PublicPromoBanner,
 } from "@/lib/promo-banners"
 import { prepareImageForUpload, measureImage, formatBytes, MAX_UPLOAD_BYTES } from "@/lib/image-compress"
-import type { PromoBanner, PromoBannerCategoryScope, PromoBannerDevice, PromoBannerFormat } from "@/types"
+import type {
+  PromoBanner,
+  PromoBannerArticleScope,
+  PromoBannerCategoryScope,
+  PromoBannerDevice,
+  PromoBannerFormat,
+  PromoSpot,
+} from "@/types"
 
 interface CategoryOption {
   id: string
@@ -54,39 +64,39 @@ interface Props {
 }
 
 type BannerInput = Omit<PromoBanner, "id" | "created_at" | "updated_at">
+type Draft = BannerInput & { id?: string }
 
 const ACCEPTED_IMAGE_TYPES = "image/jpeg,image/png,image/webp,image/gif"
 
 const SIZE_HINTS: Record<PromoBannerFormat, { key: string; mobile: string }> = {
-  standard: {
-    key: "Desktop side rail: 300×600 (or 160×600). Also used in the feed when no mobile visual is set.",
-    mobile: "In-feed on mobile: 300×250 or 336×280.",
-  },
-  prestitial: { key: "Landscape, e.g. 1920×1080.", mobile: "Portrait, e.g. 1080×1920." },
-  interstitial: { key: "Landscape, e.g. 1920×1080.", mobile: "Portrait, e.g. 1080×1920." },
-  special_boost: { key: "e.g. 1200×800 or 1080×1080.", mobile: "e.g. 1080×1350 or 1080×1920." },
+  standard: { key: "300×600 for side rails, or 300×250", mobile: "300×250 or 336×280" },
+  prestitial: { key: "Landscape, e.g. 1920×1080", mobile: "Portrait, e.g. 1080×1920" },
+  interstitial: { key: "Landscape, e.g. 1920×1080", mobile: "Portrait, e.g. 1080×1920" },
+  special_boost: { key: "e.g. 1200×800 or 1080×1080", mobile: "e.g. 1080×1350" },
 }
 
-const STATUS_STYLES: Record<PromoBannerStatus, { label: string; className: string }> = {
-  live: { label: "Live", className: "bg-emerald-500/15 text-emerald-600" },
-  scheduled: { label: "Scheduled", className: "bg-amber-500/15 text-amber-600" },
-  expired: { label: "Expired", className: "bg-neutral-500/15 text-neutral-500" },
-  paused: { label: "Paused", className: "bg-sky-500/15 text-sky-600" },
+const STATUS_STYLES: Record<PromoBannerStatus, { label: string; className: string; dot: string }> = {
+  live: { label: "Live", className: "bg-emerald-500/15 text-emerald-700", dot: "bg-emerald-500" },
+  scheduled: { label: "Scheduled", className: "bg-amber-500/15 text-amber-700", dot: "bg-amber-500" },
+  expired: { label: "Expired", className: "bg-neutral-500/15 text-neutral-500", dot: "bg-neutral-400" },
+  paused: { label: "Paused", className: "bg-sky-500/15 text-sky-700", dot: "bg-sky-500" },
 }
 
 /** Outlined secondary buttons: pointer, hover tint, slight press. */
 const outlineButton =
-  "flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--border)] text-[var(--fg-2)] transition-colors duration-150 hover:border-[var(--fg-3)] hover:bg-[var(--bg-3)] hover:text-[var(--fg)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+  "flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] text-[var(--fg-2)] transition-colors duration-150 hover:border-[var(--fg-3)] hover:bg-[var(--bg-3)] hover:text-[var(--fg)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
 
-const inputStyle = { backgroundColor: "var(--bg-3)", border: "1px solid var(--border)", color: "var(--fg)" }
-const inputClass = "w-full rounded-lg px-3 py-2 text-sm outline-none"
+const primaryButton =
+  "flex cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[#e63946] font-semibold text-white transition-colors duration-150 hover:bg-[#c9303d] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+
+const inputClass =
+  "w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg)] outline-none transition-colors placeholder:text-[var(--fg-3)] focus:border-[var(--fg-3)]"
 
 function defaultDates() {
-  // Starts now, so a new banner is live as soon as it's saved (not "Scheduled" for up to an hour).
+  // Starts now, so a new banner is live as soon as it's saved; runs for two weeks.
   const start = new Date()
   start.setSeconds(0, 0)
   const end = new Date(start)
-  end.setDate(end.getDate() + 14)
   end.setDate(end.getDate() + 14)
   return { starts_at: start.toISOString(), ends_at: end.toISOString() }
 }
@@ -107,8 +117,9 @@ function emptyBanner(): BannerInput {
     show_on_home: true,
     category_scope: "all",
     category_ids: [],
-    article_scope: "none",
+    article_scope: "all",
     device: "all",
+    placements: [...ALL_PROMO_SPOTS],
     max_impressions: null,
     max_clicks: null,
     priority: 0,
@@ -118,7 +129,7 @@ function emptyBanner(): BannerInput {
 }
 
 /** The fields the public site uses — what the preview renders. */
-function toPublic(b: BannerInput & { id?: string }): PublicPromoBanner {
+function toPublic(b: Draft): PublicPromoBanner {
   return {
     id: b.id ?? "preview",
     image_url: b.image_url,
@@ -135,6 +146,7 @@ function toPublic(b: BannerInput & { id?: string }): PublicPromoBanner {
     category_ids: b.category_ids,
     article_scope: b.article_scope,
     device: b.device,
+    placements: b.placements,
     priority: b.priority,
     weight: b.weight,
   }
@@ -145,9 +157,10 @@ function parseCap(value: string) {
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
-function formatCount(n: number) {
-  return new Intl.NumberFormat("el-GR").format(n)
-}
+const countFormat = new Intl.NumberFormat("el-GR")
+const formatCount = (n: number) => countFormat.format(n)
+const shortDate = (iso: string) =>
+  new Intl.DateTimeFormat("el-GR", { day: "numeric", month: "short", timeZone: "Europe/Athens" }).format(new Date(iso))
 
 async function uploadImage(file: File) {
   if (!file.type.startsWith("image/")) throw new Error("Please choose an image (JPG, PNG, WebP or GIF)")
@@ -167,6 +180,159 @@ async function uploadImage(file: File) {
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error ?? "Upload failed")
   return { url: data.url as string, ...prepared }
+}
+
+// ─── Small controls ─────────────────────────────────────────
+
+function Switch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean
+  onChange: (value: boolean) => void
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-150 ${
+        checked ? "bg-[#e63946]" : "bg-[var(--bg-3)] ring-1 ring-inset ring-[var(--border)]"
+      }`}
+    >
+      <span
+        className={`inline-block h-4.5 w-4.5 rounded-full bg-white shadow transition-transform duration-150 ${
+          checked ? "translate-x-[19px]" : "translate-x-[3px]"
+        }`}
+      />
+    </button>
+  )
+}
+
+/** A row of mutually exclusive options. */
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T
+  options: { value: T; label: string; disabled?: boolean; title?: string }[]
+  onChange: (value: T) => void
+  label: string
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="inline-flex flex-wrap rounded-lg p-0.5"
+      style={{ backgroundColor: "var(--bg-3)" }}
+    >
+      {options.map((o) => {
+        const active = o.value === value
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            disabled={o.disabled}
+            title={o.title}
+            onClick={() => onChange(o.value)}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${
+              active
+                ? "cursor-default bg-[var(--bg)] text-[var(--fg)] shadow-sm"
+                : "cursor-pointer text-[var(--fg-2)] hover:text-[var(--fg)]"
+            }`}
+          >
+            {o.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Toggleable pill, for multi-select lists (categories, placements). */
+function Chip({
+  on,
+  onClick,
+  color,
+  title,
+  children,
+}: {
+  on: boolean
+  onClick: () => void
+  color?: string
+  title?: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      title={title}
+      className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150 ${
+        on
+          ? "text-[var(--fg)]"
+          : "border-[var(--border)] text-[var(--fg-2)] hover:border-[var(--fg-3)] hover:text-[var(--fg)]"
+      }`}
+      style={on ? { borderColor: color ?? "#e63946", backgroundColor: `${color ?? "#e63946"}1f` } : undefined}
+    >
+      {on ? <Check size={12} /> : color ? <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} /> : null}
+      {children}
+    </button>
+  )
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="block text-xs font-medium" style={{ color: "var(--fg-2)" }}>
+        {label}
+      </span>
+      {children}
+      {hint && (
+        <span className="block text-[11px]" style={{ color: "var(--fg-3)" }}>
+          {hint}
+        </span>
+      )}
+    </label>
+  )
+}
+
+function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-4 border-b px-5 py-6 sm:px-6" style={{ borderColor: "var(--border)" }}>
+      <div>
+        <h3 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>{title}</h3>
+        {description && (
+          <p className="mt-0.5 text-xs" style={{ color: "var(--fg-3)" }}>
+            {description}
+          </p>
+        )}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/** A labelled line in the "Where it shows" section: name on the left, control on the right. */
+function OptionRow({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div className="min-w-0">
+        <p className="text-sm" style={{ color: "var(--fg)" }}>{label}</p>
+        {hint && <p className="text-[11px]" style={{ color: "var(--fg-3)" }}>{hint}</p>}
+      </div>
+      {children}
+    </div>
+  )
 }
 
 // ─── Visual field ───────────────────────────────────────────
@@ -201,11 +367,11 @@ function VisualField({
     try {
       const uploaded = await uploadImage(file)
       onChange({ url: uploaded.url, width: uploaded.width, height: uploaded.height })
-      if (uploaded.file.size < uploaded.originalBytes) {
-        setSavedNote(`Compressed ${formatBytes(uploaded.originalBytes)} → ${formatBytes(uploaded.file.size)}`)
-      } else {
-        setSavedNote(`${formatBytes(uploaded.file.size)}`)
-      }
+      setSavedNote(
+        uploaded.file.size < uploaded.originalBytes
+          ? `compressed ${formatBytes(uploaded.originalBytes)} → ${formatBytes(uploaded.file.size)}`
+          : formatBytes(uploaded.file.size)
+      )
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed")
     } finally {
@@ -221,40 +387,50 @@ function VisualField({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--fg-3)" }}>
-        <Icon size={12} />
-        <span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--fg-2)" }}>
+          <Icon size={13} />
           {label}
-          {optional && " (optional)"}
+          {optional && <span style={{ color: "var(--fg-3)" }}>· optional</span>}
         </span>
+        {optional && url && (
+          <button
+            type="button"
+            onClick={() => {
+              setSavedNote(null)
+              onChange({ url: null, width: null, height: null })
+            }}
+            className="cursor-pointer text-[11px] text-[var(--fg-3)] transition-colors hover:text-red-500"
+            title="Remove the mobile visual (the key visual is used everywhere)"
+          >
+            Remove
+          </button>
+        )}
       </div>
 
       <div
-        className="relative flex min-h-[140px] items-center justify-center overflow-hidden rounded-lg"
+        className="relative flex h-36 items-center justify-center overflow-hidden rounded-lg"
         style={{ backgroundColor: "var(--bg-3)", border: "1px dashed var(--border)" }}
       >
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt="" className="max-h-[220px] w-auto max-w-full object-contain" />
+          <img src={url} alt="" className="max-h-full max-w-full object-contain" />
         ) : (
           <p className="px-4 text-center text-xs" style={{ color: "var(--fg-3)" }}>
-            {optional ? "Not set — the key visual is used on every screen." : "No visual yet"}
+            {optional ? "Phones use the key visual" : "No visual yet"}
           </p>
         )}
         {uploading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs font-semibold text-white">
-            Compressing &amp; uploading…
+            Uploading…
           </div>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <label
-          className={`${outlineButton} px-3 py-1.5 text-xs font-semibold`}
-          title="Choose an image from your computer (JPG, PNG, WebP or GIF)"
-        >
+      <div className="grid grid-cols-2 gap-2">
+        <label className={`${outlineButton} px-2 py-1.5 text-xs font-medium`} title="Upload a JPG, PNG, WebP or GIF">
           <Upload size={12} />
-          Upload JPG / PNG / GIF
+          Upload
           <input
             type="file"
             accept={ACCEPTED_IMAGE_TYPES}
@@ -269,31 +445,16 @@ function VisualField({
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className={`${outlineButton} px-3 py-1.5 text-xs font-semibold`}
+          className={`${outlineButton} px-2 py-1.5 text-xs font-medium`}
           title="Pick an image already in the media library"
         >
           <ImagePlus size={12} />
-          From library
+          Library
         </button>
-        {optional && url && (
-          <button
-            type="button"
-            onClick={() => {
-              setSavedNote(null)
-              onChange({ url: null, width: null, height: null })
-            }}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-[var(--fg-3)] transition-colors duration-150 hover:bg-red-500/10 hover:text-red-500"
-            title="Remove the mobile visual (the key visual is used everywhere)"
-          >
-            <X size={12} />
-            Remove
-          </button>
-        )}
       </div>
 
       <p className="text-[11px] leading-snug" style={{ color: "var(--fg-3)" }}>
-        {hint}
-        {url && width && height ? ` · Current: ${width}×${height}` : ""}
+        {url && width && height ? `${width}×${height}` : hint}
         {savedNote ? ` · ${savedNote}` : ""}
       </p>
 
@@ -307,458 +468,545 @@ function VisualField({
   )
 }
 
-// ─── Form ───────────────────────────────────────────────────
+// ─── Form (side panel) ──────────────────────────────────────
 
 function BannerForm({
   initial,
   categories,
   onSave,
-  onCancel,
+  onClose,
 }: {
-  initial: BannerInput & { id?: string }
+  initial: Draft
   categories: CategoryOption[]
-  onSave: (data: BannerInput & { id?: string }) => Promise<boolean>
-  onCancel: () => void
+  onSave: (data: Draft) => Promise<boolean>
+  onClose: () => void
 }) {
-  const [form, setForm] = useState(initial)
+  const [form, setForm] = useState<Draft>(initial)
   const [startsAt, setStartsAt] = useState(toDateTimeLocalValue(initial.starts_at))
   const [endsAt, setEndsAt] = useState(toDateTimeLocalValue(initial.ends_at))
   const [saving, setSaving] = useState(false)
   const [previewing, setPreviewing] = useState(false)
+  const isEdit = Boolean(initial.id)
+  const isStandard = form.format === "standard"
+  const hasAdvanced =
+    initial.device !== "all" ||
+    initial.priority !== 0 ||
+    initial.weight !== 1 ||
+    initial.max_impressions != null ||
+    initial.max_clicks != null
+  const formRef = useRef<HTMLFormElement>(null)
 
   function set<K extends keyof BannerInput>(key: K, value: BannerInput[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  function toggleCategory(id: string) {
-    setForm((prev) => ({
-      ...prev,
-      category_ids: prev.category_ids.includes(id)
-        ? prev.category_ids.filter((c) => c !== id)
-        : [...prev.category_ids, id],
-    }))
+  function toggleIn<T extends string>(list: T[], value: T) {
+    return list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
   }
+
+  // Escape closes the panel (unless a preview is open; it handles Escape itself).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !previewing) onClose()
+    }
+    window.addEventListener("keydown", onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      window.removeEventListener("keydown", onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [onClose, previewing])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.image_url) {
-      toast.error("Add a key visual")
-      return
-    }
+    if (!form.image_url) return void toast.error("Add a key visual")
     let starts_at: string
     let ends_at: string
     try {
       starts_at = fromDateTimeLocalValue(startsAt)
       ends_at = fromDateTimeLocalValue(endsAt)
     } catch {
-      toast.error("Please set both start and end dates")
-      return
+      return void toast.error("Please set both start and end dates")
     }
-    if (new Date(ends_at) <= new Date(starts_at)) {
-      toast.error("End date must be after the start date")
-      return
-    }
-    if (form.article_scope === "categories" && form.category_scope === "none") {
-      toast.error("“Articles in the categories above” needs category targeting (all or selected)")
-      return
-    }
-    if (!form.show_on_home && form.category_scope === "none" && form.article_scope === "none") {
-      toast.error("Choose at least one page where the banner appears")
-      return
-    }
-    if (form.category_scope === "selected" && form.category_ids.length === 0) {
-      toast.error("Pick at least one category")
-      return
-    }
+    if (new Date(ends_at) <= new Date(starts_at)) return void toast.error("End date must be after the start date")
+    if (form.category_scope === "selected" && form.category_ids.length === 0)
+      return void toast.error("Pick at least one category")
+    if (form.article_scope === "categories" && form.category_scope === "none")
+      return void toast.error("“Same categories” for articles needs category pages set to All or Selected")
+    if (!form.show_on_home && form.category_scope === "none" && form.article_scope === "none")
+      return void toast.error("Choose at least one page where the banner appears")
+    if (isStandard && form.placements.length === 0) return void toast.error("Choose at least one placement")
+
     setSaving(true)
     await onSave({ ...form, starts_at, ends_at, destination_url: form.destination_url.trim() })
     setSaving(false)
   }
 
+  const selectedFormat = PROMO_FORMATS.find((f) => f.value === form.format)
   const hints = SIZE_HINTS[form.format]
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-6 rounded-xl p-4 sm:p-5"
-      style={{ backgroundColor: "var(--bg-2)", border: "1px solid var(--border)" }}
-    >
-      {/* Basics */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1">
-          <label className="text-xs" style={{ color: "var(--fg-3)" }}>Name (internal)</label>
-          <input
-            value={form.name}
-            onChange={(e) => set("name", e.target.value)}
-            required
-            maxLength={120}
-            placeholder="e.g. Release Athens 2026 — teaser"
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs" style={{ color: "var(--fg-3)" }}>Destination URL</label>
-          <input
-            value={form.destination_url}
-            onChange={(e) => set("destination_url", e.target.value)}
-            required
-            placeholder="https://… or /culture/some-article"
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
-      </div>
-
-      {/* Format */}
-      <fieldset className="space-y-2">
-        <legend className="mb-2 text-xs" style={{ color: "var(--fg-3)" }}>Format</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {PROMO_FORMATS.map((f) => {
-            const active = form.format === f.value
-            return (
-              <button
-                key={f.value}
-                type="button"
-                onClick={() => set("format", f.value)}
-                className={`cursor-pointer rounded-lg border p-3 text-left transition-all duration-150 active:scale-[0.99] ${
-                  active
-                    ? "border-[#e63946] bg-[rgba(230,57,70,0.06)]"
-                    : "border-[var(--border)] bg-[var(--bg)] hover:border-[var(--fg-3)] hover:shadow-sm"
-                }`}
-                aria-pressed={active}
-              >
-                <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--fg)" }}>
-                  <span
-                    className="flex h-3.5 w-3.5 items-center justify-center rounded-full"
-                    style={{ border: `1px solid ${active ? "#e63946" : "var(--border)"}` }}
-                  >
-                    {active && <span className="h-1.5 w-1.5 rounded-full bg-[#e63946]" />}
-                  </span>
-                  {f.label}
-                </span>
-                <span className="mt-1 block text-xs leading-snug" style={{ color: "var(--fg-3)" }}>
-                  {f.description}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </fieldset>
-
-      {/* Visuals */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <VisualField
-          label="Key visual"
-          icon={Monitor}
-          hint={hints.key}
-          url={form.image_url || null}
-          width={form.image_width}
-          height={form.image_height}
-          onChange={({ url, width, height }) =>
-            setForm((prev) => ({ ...prev, image_url: url ?? "", image_width: width, image_height: height }))
-          }
-        />
-        <VisualField
-          label="Mobile visual"
-          icon={Smartphone}
-          hint={hints.mobile}
-          url={form.mobile_image_url}
-          width={form.mobile_image_width}
-          height={form.mobile_image_height}
-          optional
-          onChange={({ url, width, height }) =>
-            setForm((prev) => ({
-              ...prev,
-              mobile_image_url: url,
-              mobile_image_width: width,
-              mobile_image_height: height,
-            }))
-          }
-        />
-      </div>
-
-      <div className="space-y-1">
-        <label className="text-xs" style={{ color: "var(--fg-3)" }}>Alt text</label>
-        <input
-          value={form.alt_text ?? ""}
-          onChange={(e) => set("alt_text", e.target.value || null)}
-          maxLength={200}
-          placeholder="Describe the visual for screen readers"
-          className={inputClass}
-          style={inputStyle}
-        />
-      </div>
-
-      {/* Duration */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1">
-          <label className="text-xs" style={{ color: "var(--fg-3)" }}>Start (Athens time)</label>
-          <input
-            type="datetime-local"
-            value={startsAt}
-            onChange={(e) => setStartsAt(e.target.value)}
-            required
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs" style={{ color: "var(--fg-3)" }}>End (Athens time)</label>
-          <input
-            type="datetime-local"
-            value={endsAt}
-            min={startsAt}
-            onChange={(e) => setEndsAt(e.target.value)}
-            required
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
-      </div>
-
-      {/* Placement */}
-      <fieldset className="space-y-3">
-        <legend className="mb-2 text-xs" style={{ color: "var(--fg-3)" }}>Where it appears</legend>
-        <label className="flex cursor-pointer items-center gap-2 text-sm" style={{ color: "var(--fg)" }}>
-          <input
-            type="checkbox"
-            checked={form.show_on_home}
-            onChange={(e) => set("show_on_home", e.target.checked)}
-            className="accent-[#e63946]"
-          />
-          Homepage
-        </label>
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: "var(--fg)" }}>
-            <span>Category pages:</span>
-            {(
-              [
-                ["none", "None"],
-                ["all", "All categories"],
-                ["selected", "Selected"],
-              ] as [PromoBannerCategoryScope, string][]
-            ).map(([value, label]) => (
-              <label key={value} className="flex cursor-pointer items-center gap-1.5">
-                <input
-                  type="radio"
-                  name="category_scope"
-                  checked={form.category_scope === value}
-                  onChange={() => set("category_scope", value)}
-                  className="accent-[#e63946]"
-                />
-                {label}
-              </label>
-            ))}
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="absolute inset-0 cursor-default bg-black/30 backdrop-blur-[2px]"
+      />
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit}
+        role="dialog"
+        aria-modal="true"
+        aria-label={isEdit ? "Edit banner" : "New banner"}
+        className="relative flex h-full w-full max-w-[640px] flex-col shadow-2xl"
+        style={{ backgroundColor: "var(--bg-2)" }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b px-5 py-4 sm:px-6" style={{ borderColor: "var(--border)" }}>
+          <div>
+            <h2 className="text-base font-semibold" style={{ color: "var(--fg)" }}>
+              {isEdit ? "Edit banner" : "New banner"}
+            </h2>
+            {isEdit && (
+              <p className="text-xs" style={{ color: "var(--fg-3)" }}>{initial.name}</p>
+            )}
           </div>
-          {form.category_scope === "selected" && (
-            <div className="flex flex-wrap gap-2">
-              {categories.map((cat) => {
-                const on = form.category_ids.includes(cat.id)
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => toggleCategory(cat.id)}
-                    className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium text-[var(--fg)] transition-colors duration-150 ${
-                      on ? "" : "border-[var(--border)] hover:border-[var(--fg-3)] hover:bg-[var(--bg-3)]"
-                    }`}
-                    style={on ? { borderColor: cat.color ?? "#e63946", backgroundColor: `${cat.color ?? "#e63946"}22` } : undefined}
-                    title={on ? `Remove ${cat.name}` : `Show on ${cat.name}`}
-                    aria-pressed={on}
-                  >
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color ?? "#e63946" }} />
-                    {cat.name}
-                  </button>
-                )
-              })}
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="cursor-pointer rounded-md p-1.5 text-[var(--fg-3)] transition-colors hover:bg-[var(--bg-3)] hover:text-[var(--fg)]"
+          >
+            <X size={18} />
+          </button>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: "var(--fg)" }}>
-          <span>Article pages:</span>
-          {PROMO_ARTICLE_SCOPES.map(([value, label]) => {
-            const disabled = value === "categories" && form.category_scope === "none"
-            return (
-              <label
-                key={value}
-                className={`flex items-center gap-1.5 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
-                style={{ opacity: disabled ? 0.45 : 1 }}
-                title={disabled ? "Choose category pages above first" : undefined}
-              >
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto">
+          <Section title="Basics">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Name" hint="Only you see this">
                 <input
-                  type="radio"
-                  name="article_scope"
-                  checked={form.article_scope === value}
-                  disabled={disabled}
-                  onChange={() => set("article_scope", value)}
-                  className="accent-[#e63946]"
+                  value={form.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  required
+                  maxLength={120}
+                  placeholder="e.g. Release Athens 2026"
+                  className={inputClass}
                 />
-                {label}
-              </label>
-            )
-          })}
-        </div>
-      </fieldset>
+              </Field>
+              <Field label="Link" hint="https://… opens a new tab; /path stays on Alive">
+                <input
+                  value={form.destination_url}
+                  onChange={(e) => set("destination_url", e.target.value)}
+                  required
+                  placeholder="https://…"
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+          </Section>
 
-      {/* Device + caps */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="space-y-1">
-          <label className="text-xs" style={{ color: "var(--fg-3)" }}>Devices</label>
-          <select
-            value={form.device}
-            onChange={(e) => set("device", e.target.value as PromoBannerDevice)}
-            className={`${inputClass} cursor-pointer`}
-            style={inputStyle}
+          <Section title="Format">
+            <Segmented
+              label="Format"
+              value={form.format}
+              onChange={(v) => set("format", v)}
+              options={PROMO_FORMATS.map((f) => ({ value: f.value, label: f.label }))}
+            />
+            <p className="text-xs" style={{ color: "var(--fg-3)" }}>{selectedFormat?.description}</p>
+          </Section>
+
+          <Section title="Visuals">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <VisualField
+                label="Key visual"
+                icon={Monitor}
+                hint={hints.key}
+                url={form.image_url || null}
+                width={form.image_width}
+                height={form.image_height}
+                onChange={({ url, width, height }) =>
+                  setForm((prev) => ({ ...prev, image_url: url ?? "", image_width: width, image_height: height }))
+                }
+              />
+              <VisualField
+                label="Phone visual"
+                icon={Smartphone}
+                hint={hints.mobile}
+                url={form.mobile_image_url}
+                width={form.mobile_image_width}
+                height={form.mobile_image_height}
+                optional
+                onChange={({ url, width, height }) =>
+                  setForm((prev) => ({ ...prev, mobile_image_url: url, mobile_image_width: width, mobile_image_height: height }))
+                }
+              />
+            </div>
+            <Field label="Alt text" hint="Describes the visual for screen readers">
+              <input
+                value={form.alt_text ?? ""}
+                onChange={(e) => set("alt_text", e.target.value || null)}
+                maxLength={200}
+                placeholder="e.g. Release Athens 2026 poster"
+                className={inputClass}
+              />
+            </Field>
+          </Section>
+
+          <Section title="Where it shows">
+            <div className="space-y-4">
+              <OptionRow label="Homepage">
+                <Switch label="Homepage" checked={form.show_on_home} onChange={(v) => set("show_on_home", v)} />
+              </OptionRow>
+              <OptionRow label="Category pages">
+                <Segmented<PromoBannerCategoryScope>
+                  label="Category pages"
+                  value={form.category_scope}
+                  onChange={(v) => {
+                    set("category_scope", v)
+                    if (v === "none" && form.article_scope === "categories") set("article_scope", "none")
+                  }}
+                  options={[
+                    { value: "none", label: "None" },
+                    { value: "all", label: "All" },
+                    { value: "selected", label: "Selected" },
+                  ]}
+                />
+              </OptionRow>
+              {form.category_scope === "selected" && (
+                <div className="flex flex-wrap gap-2 rounded-lg p-3" style={{ backgroundColor: "var(--bg)" }}>
+                  {categories.map((cat) => (
+                    <Chip
+                      key={cat.id}
+                      on={form.category_ids.includes(cat.id)}
+                      color={cat.color ?? undefined}
+                      onClick={() => setForm((prev) => ({ ...prev, category_ids: toggleIn(prev.category_ids, cat.id) }))}
+                    >
+                      {cat.name}
+                    </Chip>
+                  ))}
+                </div>
+              )}
+              <OptionRow label="Article pages">
+                <Segmented<PromoBannerArticleScope>
+                  label="Article pages"
+                  value={form.article_scope}
+                  onChange={(v) => set("article_scope", v)}
+                  options={[
+                    { value: "none", label: "None" },
+                    { value: "all", label: "All" },
+                    {
+                      value: "categories",
+                      label: "Same categories",
+                      disabled: form.category_scope === "none",
+                      title:
+                        form.category_scope === "none"
+                          ? "Set category pages to All or Selected first"
+                          : "Only articles in the categories chosen above",
+                    },
+                  ]}
+                />
+              </OptionRow>
+            </div>
+
+            {isStandard && (
+              <div className="space-y-2 pt-2">
+                <p className="text-xs font-medium" style={{ color: "var(--fg-2)" }}>Placements on the page</p>
+                <div className="flex flex-wrap gap-2">
+                  {PROMO_SPOTS.map((spot) => (
+                    <Chip
+                      key={spot.value}
+                      on={form.placements.includes(spot.value)}
+                      title={spot.hint}
+                      onClick={() =>
+                        setForm((prev) => ({ ...prev, placements: toggleIn<PromoSpot>(prev.placements, spot.value) }))
+                      }
+                    >
+                      {spot.label}
+                    </Chip>
+                  ))}
+                </div>
+                <p className="text-[11px]" style={{ color: "var(--fg-3)" }}>
+                  Hover a placement for where it sits. Each banner shows at most once per page.
+                </p>
+              </div>
+            )}
+          </Section>
+
+          <Section title="Schedule">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Starts (Athens time)">
+                <input
+                  type="datetime-local"
+                  value={startsAt}
+                  onChange={(e) => setStartsAt(e.target.value)}
+                  required
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Ends (Athens time)">
+                <input
+                  type="datetime-local"
+                  value={endsAt}
+                  min={startsAt}
+                  onChange={(e) => setEndsAt(e.target.value)}
+                  required
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+            <OptionRow label="Active" hint="Turn off to pause without changing the dates">
+              <Switch label="Active" checked={form.is_active} onChange={(v) => set("is_active", v)} />
+            </OptionRow>
+          </Section>
+
+          <details className="group" open={hasAdvanced}>
+            <summary
+              className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-semibold transition-colors hover:bg-[var(--bg-3)] sm:px-6 [&::-webkit-details-marker]:hidden"
+              style={{ color: "var(--fg)" }}
+            >
+              <span>
+                Advanced
+                <span className="ml-2 text-xs font-normal" style={{ color: "var(--fg-3)" }}>
+                  Devices, priority, weight, limits
+                </span>
+              </span>
+              <ChevronDown size={16} className="transition-transform group-open:rotate-180" style={{ color: "var(--fg-3)" }} />
+            </summary>
+            <div className="space-y-4 px-5 pb-6 sm:px-6">
+              <OptionRow label="Devices" hint="Phones are screens under 768px">
+                <Segmented<PromoBannerDevice>
+                  label="Devices"
+                  value={form.device}
+                  onChange={(v) => set("device", v)}
+                  options={PROMO_DEVICES.map(([value, label]) => ({
+                    value,
+                    label: value === "all" ? "All" : value === "desktop" ? "Desktop & tablet" : "Phones",
+                    title: label,
+                  }))}
+                />
+              </OptionRow>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Priority" hint="Higher always gets the first spots">
+                  <input
+                    type="number"
+                    min={-100}
+                    max={100}
+                    value={form.priority}
+                    onChange={(e) => set("priority", Number.parseInt(e.target.value || "0", 10) || 0)}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Weight" hint="Share among equal priority: 2× shows twice as often">
+                  <select
+                    value={form.weight}
+                    onChange={(e) => set("weight", Number(e.target.value))}
+                    className={`${inputClass} cursor-pointer`}
+                  >
+                    {Array.from({ length: 10 }, (_, i) => i + 1).map((w) => (
+                      <option key={w} value={w}>
+                        {w}×{w === 1 ? " (normal)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Stop after impressions" hint="Leave empty for no limit">
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.max_impressions ?? ""}
+                    onChange={(e) => set("max_impressions", parseCap(e.target.value))}
+                    placeholder="No limit"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Stop after clicks" hint="Leave empty for no limit">
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.max_clicks ?? ""}
+                    onChange={(e) => set("max_clicks", parseCap(e.target.value))}
+                    placeholder="No limit"
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        {/* Footer */}
+        <div
+          className="flex items-center justify-between gap-2 border-t px-5 py-3 sm:px-6"
+          style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-2)" }}
+        >
+          <button
+            type="button"
+            onClick={() => (form.image_url ? setPreviewing(true) : toast.error("Add a key visual to preview"))}
+            className={`${outlineButton} px-3 py-2 text-sm`}
+            title="See how it looks on the site before saving"
           >
-            {PROMO_DEVICES.map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
+            <Eye size={14} />
+            Preview
+          </button>
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className={`${outlineButton} px-3 py-2 text-sm`}>
+              Cancel
+            </button>
+            <button type="submit" disabled={saving} className={`${primaryButton} px-4 py-2 text-sm`}>
+              <Check size={14} />
+              {saving ? "Saving…" : isEdit ? "Save changes" : "Create banner"}
+            </button>
+          </div>
         </div>
-        <div className="space-y-1">
-          <label className="text-xs" style={{ color: "var(--fg-3)" }}>Stop after impressions (optional)</label>
-          <input
-            type="number"
-            min={1}
-            value={form.max_impressions ?? ""}
-            onChange={(e) => set("max_impressions", parseCap(e.target.value))}
-            placeholder="No limit"
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs" style={{ color: "var(--fg-3)" }}>Stop after clicks (optional)</label>
-          <input
-            type="number"
-            min={1}
-            value={form.max_clicks ?? ""}
-            onChange={(e) => set("max_clicks", parseCap(e.target.value))}
-            placeholder="No limit"
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
-        <p className="text-[11px] sm:col-span-3" style={{ color: "var(--fg-3)" }}>
-          Phones are screens under 768px. Caps count all-time totals from Analytics; the banner stops within about a
-          minute of reaching either one.
-        </p>
-      </div>
-
-      {/* Priority + active */}
-      <div className="flex flex-wrap items-end gap-6">
-        <div className="space-y-1">
-          <label className="text-xs" style={{ color: "var(--fg-3)" }}>Priority</label>
-          <input
-            type="number"
-            min={-100}
-            max={100}
-            value={form.priority}
-            onChange={(e) => set("priority", Number.parseInt(e.target.value || "0", 10) || 0)}
-            className="w-24 rounded-lg px-3 py-2 text-sm outline-none"
-            style={inputStyle}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs" style={{ color: "var(--fg-3)" }}>Weight</label>
-          <select
-            value={form.weight}
-            onChange={(e) => set("weight", Number(e.target.value))}
-            className="w-28 cursor-pointer rounded-lg px-3 py-2 text-sm outline-none"
-            style={inputStyle}
-          >
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((w) => (
-              <option key={w} value={w}>
-                {w}×{w === 1 ? " (normal)" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-        <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm" style={{ color: "var(--fg)" }}>
-          <input
-            type="checkbox"
-            checked={form.is_active}
-            onChange={(e) => set("is_active", e.target.checked)}
-            className="accent-[#e63946]"
-          />
-          Active
-        </label>
-        <p className="pb-2 text-xs" style={{ color: "var(--fg-3)" }}>
-          Higher priority always gets the first spots. Banners with the same priority take turns by weight:
-          2× shows about twice as often as 1×.
-        </p>
-      </div>
-
-      <div className="flex items-center gap-2 pt-1">
-        <button
-          type="submit"
-          disabled={saving}
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#e63946] px-3 py-1.5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#c9303d] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Check size={13} />
-          {saving ? "Saving…" : "Save banner"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (!form.image_url) {
-              toast.error("Add a key visual to preview")
-              return
-            }
-            setPreviewing(true)
-          }}
-          className={`${outlineButton} px-3 py-1.5 text-sm`}
-          title="See how this banner will look on the site, before saving"
-        >
-          <Eye size={13} />
-          Preview
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className={`${outlineButton} px-3 py-1.5 text-sm`}
-          title="Close without saving"
-        >
-          <X size={13} />
-          Cancel
-        </button>
-      </div>
+      </form>
       {previewing && <BannerPreview banner={toPublic(form)} onClose={() => setPreviewing(false)} />}
-    </form>
+    </div>
   )
 }
 
-// ─── Manager ────────────────────────────────────────────────
+// ─── List ───────────────────────────────────────────────────
+
+/** Icon button with an info box on hover or keyboard focus. */
+function ActionButton({
+  label,
+  hint,
+  onClick,
+  children,
+}: {
+  label: string
+  hint: string
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <span className="group/action relative inline-flex">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onClick()
+        }}
+        aria-label={`${label} banner`}
+        className="cursor-pointer rounded-md p-2 text-[var(--fg-3)] transition-colors duration-150 hover:bg-[var(--bg-3)] hover:text-[var(--fg)] focus-visible:bg-[var(--bg-3)] focus-visible:text-[var(--fg)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--fg-3)]"
+      >
+        {children}
+      </button>
+      <span
+        role="tooltip"
+        aria-hidden
+        className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-max max-w-[200px] -translate-x-1/2 translate-y-1 rounded-lg px-2.5 py-1.5 text-left opacity-0 shadow-lg transition-all duration-150 group-hover/action:translate-y-0 group-hover/action:opacity-100 group-has-[:focus-visible]/action:translate-y-0 group-has-[:focus-visible]/action:opacity-100"
+        style={{ backgroundColor: "var(--fg)", color: "var(--bg)" }}
+      >
+        <span className="block text-xs font-semibold">{label}</span>
+        <span className="block text-[11px] opacity-75">{hint}</span>
+      </span>
+    </span>
+  )
+}
+
+/** "⋯" menu for the less frequent actions. */
+function MoreMenu({ items }: { items: { label: string; icon: typeof Copy; onClick: () => void; danger?: boolean }[] }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onDown(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false)
+    }
+    document.addEventListener("mousedown", onDown)
+    window.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      window.removeEventListener("keydown", onKey)
+    }
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((v) => !v)
+        }}
+        aria-label="More actions"
+        aria-expanded={open}
+        title="More actions"
+        className="cursor-pointer rounded-md p-2 text-[var(--fg-3)] transition-colors duration-150 hover:bg-[var(--bg-3)] hover:text-[var(--fg)]"
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-lg py-1 shadow-xl"
+          style={{ backgroundColor: "var(--bg)", border: "1px solid var(--border)" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {items.map(({ label, icon: Icon, onClick, danger }) => (
+            <button
+              key={label}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false)
+                onClick()
+              }}
+              className={`flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--bg-3)] ${
+                danger ? "text-red-600" : "text-[var(--fg)]"
+              }`}
+            >
+              <Icon size={14} />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function BannerManager({ initial, categories, totals }: Props) {
   const router = useRouter()
   const [banners, setBanners] = useState(initial)
-  // A new banner's starting values: empty, or a copy of an existing banner.
-  const [draft, setDraft] = useState<BannerInput | null>(null)
+  // The banner open in the side panel: a new draft, a copy, or an existing banner.
+  const [editing, setEditing] = useState<Draft | null>(null)
   const [previewing, setPreviewing] = useState<PromoBanner | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
   const [filter, setFilter] = useState<PromoBannerStatus | "all">("all")
 
   const categoryNames = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories])
 
-  function placementSummary(b: PromoBanner) {
+  function whereSummary(b: PromoBanner) {
     const parts: string[] = []
     if (b.show_on_home) parts.push("Homepage")
     if (b.category_scope === "all") parts.push("All categories")
     if (b.category_scope === "selected") {
-      parts.push(b.category_ids.map((id) => categoryNames.get(id) ?? "Deleted category").join(", "))
+      const names = b.category_ids.map((id) => categoryNames.get(id) ?? "Deleted category")
+      parts.push(names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(", "))
     }
-    if (b.article_scope === "all") parts.push("All articles")
-    if (b.article_scope === "categories") parts.push("Their articles")
+    if (b.article_scope !== "none") parts.push("Articles")
     if (b.device === "desktop") parts.push("Desktop only")
     if (b.device === "mobile") parts.push("Phones only")
-    if (b.priority !== 0) parts.push(`Priority ${b.priority}`)
-    if (b.weight !== 1) parts.push(`Weight ${b.weight}×`)
+    if (b.format === "standard" && b.placements.length < ALL_PROMO_SPOTS.length) {
+      parts.push(
+        b.placements
+          .map((p) => PROMO_SPOTS.find((s) => s.value === p)?.label)
+          .filter(Boolean)
+          .join(", ")
+      )
+    }
     return parts.join(" · ") || "Nowhere"
   }
 
-  async function save(data: BannerInput & { id?: string }) {
+  async function save(data: Draft) {
     const { id, ...body } = data
     const res = await fetch(id ? `/api/admin/banners/${id}` : "/api/admin/banners", {
       method: id ? "PATCH" : "POST",
@@ -770,11 +1018,8 @@ export function BannerManager({ initial, categories, totals }: Props) {
       toast.error(json.error ?? "Failed to save banner")
       return false
     }
-    setBanners((prev) =>
-      id ? prev.map((b) => (b.id === id ? json : b)) : [json, ...prev]
-    )
-    setDraft(null)
-    setEditingId(null)
+    setBanners((prev) => (id ? prev.map((b) => (b.id === id ? json : b)) : [json, ...prev]))
+    setEditing(null)
     toast.success(id ? "Banner updated" : "Banner created")
     router.refresh()
     return true
@@ -787,10 +1032,7 @@ export function BannerManager({ initial, categories, totals }: Props) {
       body: JSON.stringify({ is_active: !banner.is_active }),
     })
     const json = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      toast.error(json.error ?? "Failed to update banner")
-      return
-    }
+    if (!res.ok) return void toast.error(json.error ?? "Failed to update banner")
     setBanners((prev) => prev.map((b) => (b.id === banner.id ? json : b)))
     toast.success(json.is_active ? "Banner resumed" : "Banner paused")
   }
@@ -800,229 +1042,145 @@ export function BannerManager({ initial, categories, totals }: Props) {
     const res = await fetch(`/api/admin/banners/${banner.id}`, { method: "DELETE" })
     if (!res.ok) {
       const json = await res.json().catch(() => ({}))
-      toast.error(json.error ?? "Failed to delete banner")
-      return
+      return void toast.error(json.error ?? "Failed to delete banner")
     }
     setBanners((prev) => prev.filter((b) => b.id !== banner.id))
     toast.success("Banner deleted")
     router.refresh()
   }
 
+  function duplicate(banner: PromoBanner) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, created_at, updated_at, ...copy } = banner
+    // Copies start paused so a campaign never runs twice by accident.
+    setEditing({ ...copy, name: `${banner.name} (copy)`.slice(0, 120), is_active: false })
+  }
+
   const withStatus = banners.map((b) => ({ banner: b, status: promoBannerStatus(b) }))
   const visible = filter === "all" ? withStatus : withStatus.filter((b) => b.status === filter)
+  const counts = (s: PromoBannerStatus) => withStatus.filter((b) => b.status === s).length
 
   return (
-    <div className="max-w-4xl space-y-4">
-      {previewing && <BannerPreview banner={toPublic(previewing)} onClose={() => setPreviewing(null)} />}
-      {draft ? (
-        <BannerForm
-          initial={draft}
-          categories={categories}
-          onSave={save}
-          onCancel={() => setDraft(null)}
+    <div className="max-w-5xl space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Segmented<PromoBannerStatus | "all">
+          label="Filter banners"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: "all", label: `All ${banners.length}` },
+            { value: "live", label: `Live ${counts("live")}` },
+            { value: "scheduled", label: `Scheduled ${counts("scheduled")}` },
+            { value: "paused", label: `Paused ${counts("paused")}` },
+            { value: "expired", label: `Expired ${counts("expired")}` },
+          ]}
         />
-      ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <button
-            onClick={() => {
-              setEditingId(null)
-              setDraft(emptyBanner())
-            }}
-            className="flex cursor-pointer items-center gap-2 rounded-lg bg-[#e63946] px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#c9303d] active:scale-[0.98]"
-          >
-            <Plus size={14} />
-            New Banner
-          </button>
-          <div className="flex flex-wrap gap-1">
-            {(["all", "live", "scheduled", "paused", "expired"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setFilter(s)}
-                className={`cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors duration-150 ${
-                  filter === s
-                    ? "bg-[var(--bg-3)] text-[var(--fg)]"
-                    : "text-[var(--fg-3)] hover:bg-[var(--bg-3)]/60 hover:text-[var(--fg)]"
-                }`}
-                title={s === "all" ? "Show every banner" : `Show only ${s} banners`}
-                aria-pressed={filter === s}
-              >
-                {s === "all" ? `All (${banners.length})` : `${s} (${withStatus.filter((b) => b.status === s).length})`}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+        <button onClick={() => setEditing(emptyBanner())} className={`${primaryButton} px-4 py-2 text-sm`}>
+          <Plus size={15} />
+          New banner
+        </button>
+      </div>
 
-      {/* Not overflow-hidden: the action info boxes may extend above the first row. */}
-      <div className="rounded-xl" style={{ border: "1px solid var(--border)" }}>
+      <div className="rounded-xl" style={{ border: "1px solid var(--border)", backgroundColor: "var(--bg-2)" }}>
         {visible.length === 0 && (
-          <p className="py-10 text-center text-sm" style={{ color: "var(--fg-3)" }}>
-            {banners.length === 0 ? "No banners yet." : "No banners match this filter."}
-          </p>
+          <div className="px-6 py-14 text-center">
+            <p className="text-sm font-medium" style={{ color: "var(--fg)" }}>
+              {banners.length === 0 ? "No banners yet" : "No banners match this filter"}
+            </p>
+            {banners.length === 0 && (
+              <p className="mt-1 text-xs" style={{ color: "var(--fg-3)" }}>
+                Create one to start showing promotions on the site.
+              </p>
+            )}
+          </div>
         )}
-        {visible.map(({ banner, status }) =>
-          editingId === banner.id ? (
-            <div key={banner.id} className="p-3" style={{ borderBottom: "1px solid var(--border)" }}>
-              <BannerForm
-                initial={banner}
-                categories={categories}
-                onSave={save}
-                onCancel={() => setEditingId(null)}
-              />
-            </div>
-          ) : (
+        {visible.map(({ banner, status }, i) => {
+          const t = totals[banner.id] ?? { impressions: 0, clicks: 0 }
+          const ctr = t.impressions > 0 ? `${((t.clicks / t.impressions) * 100).toFixed(2)}%` : "—"
+          return (
             <div
               key={banner.id}
-              className="flex flex-col gap-3 px-4 py-3 first:rounded-t-xl last:rounded-b-xl sm:flex-row sm:items-center"
-              style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--bg-2)" }}
+              role="button"
+              tabIndex={0}
+              onClick={() => setEditing(banner)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") setEditing(banner)
+              }}
+              className={`grid cursor-pointer grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 transition-colors duration-150 hover:bg-[var(--bg-3)]/50 sm:grid-cols-[72px_minmax(0,1fr)_200px_auto] ${
+                i > 0 ? "border-t border-[var(--border)]" : ""
+              } first:rounded-t-xl last:rounded-b-xl`}
             >
-              <div
-                className="flex h-16 w-full shrink-0 items-center justify-center overflow-hidden rounded-md sm:w-28"
-                style={{ backgroundColor: "var(--bg-3)" }}
-              >
+              <div className="flex h-12 items-center justify-center overflow-hidden rounded-md" style={{ backgroundColor: "var(--bg-3)" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={banner.image_url} alt="" className="max-h-full max-w-full object-contain" loading="lazy" />
               </div>
 
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium" style={{ color: "var(--fg)" }}>{banner.name}</span>
-                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${STATUS_STYLES[status].className}`}>
+                  <span className="truncate text-sm font-semibold" style={{ color: "var(--fg)" }}>{banner.name}</span>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_STYLES[status].className}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${STATUS_STYLES[status].dot}`} />
                     {STATUS_STYLES[status].label}
                   </span>
-                  <span
-                    className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
-                    style={{ backgroundColor: "var(--bg-3)", color: "var(--fg-2)" }}
-                  >
-                    {PROMO_FORMAT_LABELS[banner.format]}
-                  </span>
-                  {banner.mobile_image_url && (
-                    <span title="Has a mobile visual" style={{ color: "var(--fg-3)" }}>
-                      <Smartphone size={12} />
-                    </span>
-                  )}
+                  <span className="text-[11px]" style={{ color: "var(--fg-3)" }}>{PROMO_FORMAT_LABELS[banner.format]}</span>
                 </div>
-                <p className="mt-1 text-xs" style={{ color: "var(--fg-3)" }}>
-                  {formatDateTime(banner.starts_at)} → {formatDateTime(banner.ends_at)}
+                <p className="mt-0.5 truncate text-xs" style={{ color: "var(--fg-3)" }} title={`${formatDateTime(banner.starts_at)} → ${formatDateTime(banner.ends_at)}`}>
+                  {shortDate(banner.starts_at)} → {shortDate(banner.ends_at)} · {whereSummary(banner)}
                 </p>
-                <p className="mt-0.5 line-clamp-1 text-xs" style={{ color: "var(--fg-3)" }}>
-                  {placementSummary(banner)} ·{" "}
-                  <a
-                    href={banner.destination_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-0.5 hover:underline"
-                  >
-                    {banner.destination_url}
-                    <ExternalLink size={10} />
-                  </a>
-                </p>
-                <BannerStatsLine banner={banner} totals={totals[banner.id]} />
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="hidden grid-cols-3 gap-2 text-right sm:grid">
+                {[
+                  ["Views", formatCount(t.impressions)],
+                  ["Clicks", formatCount(t.clicks)],
+                  ["CTR", ctr],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <p className="text-sm font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{value}</p>
+                    <p className="text-[10px] uppercase tracking-wider" style={{ color: "var(--fg-3)" }}>{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center">
                 <ActionButton label="Preview" hint="See how it looks on the site" onClick={() => setPreviewing(banner)}>
-                  <Eye size={14} />
+                  <Eye size={16} />
                 </ActionButton>
-                <ActionButton
-                  label="Duplicate"
-                  hint="Copy into a new banner (starts paused)"
-                  onClick={() => {
-                    setEditingId(null)
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const { id, created_at, updated_at, ...copy } = banner
-                    // Copies start paused so a campaign never runs twice by accident.
-                    setDraft({ ...copy, name: `${banner.name} (copy)`.slice(0, 120), is_active: false })
-                    window.scrollTo({ top: 0, behavior: "smooth" })
-                  }}
-                >
-                  <Copy size={14} />
+                <ActionButton label="Edit" hint="Visuals, dates and where it shows" onClick={() => setEditing(banner)}>
+                  <Pencil size={16} />
                 </ActionButton>
-                <ActionButton
-                  label={banner.is_active ? "Pause" : "Resume"}
-                  hint={banner.is_active ? "Stop showing it on the site" : "Show it on the site again"}
-                  onClick={() => toggleActive(banner)}
-                >
-                  {banner.is_active ? <Pause size={14} /> : <Play size={14} />}
-                </ActionButton>
-                <ActionButton
-                  label="Edit"
-                  hint="Change visuals, dates or targeting"
-                  onClick={() => {
-                    setDraft(null)
-                    setEditingId(banner.id)
-                  }}
-                >
-                  <Pencil size={14} />
-                </ActionButton>
-                <ActionButton label="Delete" hint="Remove permanently" danger align="end" onClick={() => handleDelete(banner)}>
-                  <Trash2 size={14} />
-                </ActionButton>
+                <MoreMenu
+                  items={[
+                    { label: "Duplicate", icon: Copy, onClick: () => duplicate(banner) },
+                    {
+                      label: banner.is_active ? "Pause" : "Resume",
+                      icon: banner.is_active ? Pause : Play,
+                      onClick: () => toggleActive(banner),
+                    },
+                    {
+                      label: "Open link",
+                      icon: ExternalLink,
+                      onClick: () => window.open(banner.destination_url, "_blank", "noopener,noreferrer"),
+                    },
+                    { label: "Delete", icon: Trash2, onClick: () => handleDelete(banner), danger: true },
+                  ]}
+                />
               </div>
             </div>
           )
-        )}
+        })}
       </div>
+
+      {editing && (
+        <BannerForm
+          key={editing.id ?? "new"}
+          initial={editing}
+          categories={categories}
+          onSave={save}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      {previewing && <BannerPreview banner={toPublic(previewing)} onClose={() => setPreviewing(null)} />}
     </div>
-  )
-}
-
-function BannerStatsLine({ banner, totals }: { banner: PromoBanner; totals?: BannerTotals }) {
-  const impressions = totals?.impressions ?? 0
-  const clicks = totals?.clicks ?? 0
-  const ctr = impressions > 0 ? `${((clicks / impressions) * 100).toFixed(2)}%` : "—"
-  const caps = [
-    banner.max_impressions != null && `cap ${formatCount(banner.max_impressions)} impressions`,
-    banner.max_clicks != null && `cap ${formatCount(banner.max_clicks)} clicks`,
-  ].filter(Boolean)
-  return (
-    <p className="mt-0.5 text-xs tabular-nums" style={{ color: "var(--fg-2)" }}>
-      {formatCount(impressions)} impressions · {formatCount(clicks)} clicks · CTR {ctr}
-      {caps.length > 0 && <span style={{ color: "var(--fg-3)" }}> · {caps.join(", ")}</span>}
-    </p>
-  )
-}
-
-/** Icon button for the banner list: pointer cursor, hover tint, and an info box on hover or keyboard focus. */
-function ActionButton({
-  label,
-  hint,
-  onClick,
-  danger,
-  align = "center",
-  children,
-}: {
-  label: string
-  hint: string
-  onClick: () => void
-  danger?: boolean
-  /** "end" keeps the info box inside the list on the last button */
-  align?: "center" | "end"
-  children: React.ReactNode
-}) {
-  return (
-    <span className="group relative inline-flex">
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label={`${label} banner`}
-        className={`cursor-pointer rounded-md p-1.5 text-[var(--fg-3)] transition-colors duration-150 hover:bg-[var(--bg-3)] focus-visible:bg-[var(--bg-3)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--fg-3)] active:scale-95 ${
-          danger ? "hover:text-red-500 focus-visible:text-red-500" : "hover:text-[var(--fg)] focus-visible:text-[var(--fg)]"
-        }`}
-      >
-        {children}
-      </button>
-      <span
-        role="tooltip"
-        aria-hidden
-        className={`pointer-events-none absolute bottom-full z-20 mb-2 w-max max-w-[220px] translate-y-1 rounded-lg px-2.5 py-1.5 text-left opacity-0 shadow-lg transition-all duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-has-[:focus-visible]:translate-y-0 group-has-[:focus-visible]:opacity-100 ${
-          align === "end" ? "right-0" : "left-1/2 -translate-x-1/2"
-        }`}
-        style={{ backgroundColor: "var(--fg)", color: "var(--bg)" }}
-      >
-        <span className="block text-xs font-semibold">{label}</span>
-        <span className="block text-[11px] opacity-75">{hint}</span>
-      </span>
-    </span>
   )
 }

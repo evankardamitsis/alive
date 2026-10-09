@@ -45,6 +45,11 @@ export const promoBannerSchema = z
     category_ids: z.array(z.uuid()).default([]),
     article_scope: z.enum(["none", "all", "categories"]).default("none"),
     device: z.enum(["all", "desktop", "mobile"]).default("all"),
+    placements: z
+      .array(z.enum(["rail", "feed", "article", "sidebar", "after_article"]))
+      .min(1, "Choose at least one placement")
+      .default(["rail", "feed", "article", "sidebar", "after_article"])
+      .transform((list) => [...new Set(list)]),
     max_impressions: cap,
     max_clicks: cap,
     priority: z.number().int().min(-100).max(100).default(0),

@@ -8,6 +8,7 @@ import { JsonLd } from "@/components/JsonLd"
 import { getSiteUrl, siteUrl } from "@/lib/site"
 import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
 import { PromoRails, PromoInFeed, inlineBannersFor } from "@/components/promo/PromoPlacements"
+import { planListingPage } from "@/lib/promo-plan"
 
 /** In-feed promo after every N grid cards (divisible by 1–4 columns so rows stay full). */
 const PROMO_EVERY = 12
@@ -51,7 +52,7 @@ export default async function CategoryPage({ params }: Props) {
     getPublishedPosts({ categorySlug: category, limit: 26 }),
     getLivePromoBanners(),
   ])
-  const promos = inlineBannersFor(liveBanners, { type: "category", categoryId: cat.id })
+  const promos = planListingPage(inlineBannersFor(liveBanners, { type: "category", categoryId: cat.id }))
 
   const featured = featuredPost ?? recent[0] ?? null
   const rest = recent.filter((p) => p.id !== featured?.id)
@@ -95,7 +96,7 @@ export default async function CategoryPage({ params }: Props) {
   }
 
   return (
-    <PromoRails banners={promos}>
+    <PromoRails left={promos.left} right={promos.right}>
       <JsonLd data={jsonLd} />
       {/* ── Category header ── */}
       <div className="border-b" style={{ borderColor: "var(--border)" }}>
@@ -134,7 +135,7 @@ export default async function CategoryPage({ params }: Props) {
               </div>
             )}
 
-            <PromoInFeed banners={promos} slot={0} className="mb-12" />
+            <PromoInFeed pick={promos.feed[0]} className="mb-12" />
 
             {/* Grid */}
             {rest.length > 0 && (
@@ -144,7 +145,7 @@ export default async function CategoryPage({ params }: Props) {
                   return (
                     <Fragment key={post.id}>
                       <ArticleCard post={post} />
-                      {promoSlot !== null && <PromoInFeed banners={promos} slot={promoSlot} className="col-span-full" />}
+                      {promoSlot !== null && <PromoInFeed pick={promos.feed[promoSlot]} className="col-span-full" />}
                     </Fragment>
                   )
                 })}

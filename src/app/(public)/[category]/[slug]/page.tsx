@@ -15,6 +15,7 @@ import { ShareButtons } from "@/components/article/ShareButtons"
 import { JsonLd } from "@/components/JsonLd"
 import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
 import { PromoRails, PromoInFeed, PromoSidebar, inlineBannersFor } from "@/components/promo/PromoPlacements"
+import { planArticlePage } from "@/lib/promo-plan"
 
 export const revalidate = 60
 export const dynamicParams = true
@@ -79,14 +80,13 @@ export default async function ArticlePage({ params }: Props) {
     getLivePromoBanners(),
   ])
   const promos = inlineBannersFor(liveBanners, { type: "article", categoryId: post.category.id })
-  // Banners go between paragraphs (after the 3rd, then every 6th); with no banners, one block.
-  const contentChunks = promos.length > 0
+  // Banners go between paragraphs (after the 3rd, then every 6th) when any banner may sit there;
+  // otherwise the text stays one block.
+  const contentChunks = promos.some((b) => (b.placements ?? ["article"]).includes("article"))
     ? splitArticleForPromos(normalizeArticleImages(post.content))
     : [normalizeArticleImages(post.content)]
-  // Each banner once per page, handed out in order of value: in-article slots take positions
-  // 0…k-1, the sidebar k, the slot after the article k (phones) / k+1 (desktop), and the rails
-  // the rest from k+1 (the after-article slot is hidden where rails show, so they can share it).
-  const inArticleSlots = contentChunks.length - 1
+  // In-article slots first, then sidebar, after-article and rails (see lib/promo-plan).
+  const promoPlan = planArticlePage(promos, contentChunks.length - 1)
   const readTime = estimateReadTime(post.content)
   const excerpt = articleDescription(post.excerpt, post.content, 260)
   const postUrl = siteUrl(`/${post.category.slug}/${post.slug}`)
@@ -156,7 +156,7 @@ export default async function ArticlePage({ params }: Props) {
   }
 
   return (
-    <PromoRails banners={promos} skip={inArticleSlots + 1}>
+    <PromoRails left={promoPlan.left} right={promoPlan.right}>
       <JsonLd data={jsonLd} />
       <ReadingProgress />
 
@@ -263,12 +263,12 @@ export default async function ArticlePage({ params }: Props) {
             {/* Banners sit between blocks of text, never inside one (article-content styles every img). */}
             {contentChunks.map((html, i) => (
               <Fragment key={i}>
-                {i > 0 && <PromoInFeed banners={promos} slot={i - 1} placement="article" className="my-10" />}
+                {i > 0 && <PromoInFeed pick={promoPlan.inArticle[i - 1]} placement="article" className="my-10" />}
                 <div className="article-content" dangerouslySetInnerHTML={{ __html: html }} />
               </Fragment>
             ))}
 
-            <PromoInFeed banners={promos} slot={inArticleSlots} desktopSlot={inArticleSlots + 1} className="mt-12" />
+            <PromoInFeed pick={promoPlan.afterArticle} className="mt-12" />
 
             {/* Tags */}
             {post.tags && post.tags.length > 0 && (
@@ -344,7 +344,7 @@ export default async function ArticlePage({ params }: Props) {
           {/* Sidebar */}
           <aside className="hidden xl:block">
             <div className="sticky top-6 space-y-8">
-              <PromoSidebar banners={promos} index={inArticleSlots} />
+              <PromoSidebar banner={promoPlan.sidebar} />
               {/* Author */}
               {post.author.show_on_site !== false && (
                 <Link

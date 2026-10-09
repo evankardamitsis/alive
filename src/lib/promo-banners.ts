@@ -4,6 +4,7 @@ import type {
   PromoBannerCategoryScope,
   PromoBannerDevice,
   PromoBannerFormat,
+  PromoSpot,
 } from "@/types"
 
 // Shared (client + server safe) helpers for promo banners.
@@ -45,6 +46,17 @@ export const PROMO_ARTICLE_SCOPES: [PromoBannerArticleScope, string][] = [
   ["categories", "Articles in the categories above"],
 ]
 
+/** Spots a standard banner can use, in the order the admin lists them. */
+export const PROMO_SPOTS: { value: PromoSpot; label: string; hint: string }[] = [
+  { value: "rail", label: "Side rails", hint: "Left and right of the page on wide screens (1440px+)" },
+  { value: "feed", label: "Homepage & category feed", hint: "Between articles on the homepage and category pages" },
+  { value: "article", label: "In article", hint: "Between paragraphs, on every screen size" },
+  { value: "sidebar", label: "Article sidebar", hint: "Top of the article's right column (1280px+)" },
+  { value: "after_article", label: "After article", hint: "Below the article text (below 1440px)" },
+]
+
+export const ALL_PROMO_SPOTS: PromoSpot[] = PROMO_SPOTS.map((s) => s.value)
+
 export const PROMO_DEVICES: [PromoBannerDevice, string][] = [
   ["all", "All devices"],
   ["desktop", "Desktop & tablet only"],
@@ -79,6 +91,7 @@ export type PublicPromoBanner = Pick<
   | "category_ids"
   | "article_scope"
   | "device"
+  | "placements"
   | "priority"
   | "weight"
 >

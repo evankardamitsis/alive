@@ -88,6 +88,9 @@ export type PromoBannerArticleScope = "none" | "all" | "categories"
 /** desktop = 768px and up, mobile = below 768px */
 export type PromoBannerDevice = "all" | "desktop" | "mobile"
 
+/** Spots a standard banner may use on a page */
+export type PromoSpot = "rail" | "feed" | "article" | "sidebar" | "after_article"
+
 export interface PromoBanner {
   id: string
   /** Internal name, shown only in admin */
@@ -111,6 +114,8 @@ export interface PromoBanner {
   category_ids: string[]
   article_scope: PromoBannerArticleScope
   device: PromoBannerDevice
+  /** Standard banners only: which spots it may use (at least one) */
+  placements: PromoSpot[]
   /** The banner stops showing once either total is reached (null = no cap) */
   max_impressions: number | null
   max_clicks: number | null
