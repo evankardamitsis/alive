@@ -4,7 +4,7 @@ import { Footer } from "@/components/layout/Footer"
 import { JsonLd } from "@/components/JsonLd"
 import { DEFAULT_DESCRIPTION, SITE_NAME } from "@/lib/metadata"
 import { getSiteUrl, siteUrl } from "@/lib/site"
-import { getAllCategories } from "@/lib/supabase/queries"
+import { getAllCategories, getCategorySlugsWithContent } from "@/lib/supabase/queries"
 import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
 import { isFullscreenFormat } from "@/lib/promo-banners"
 import { PromoOverlays } from "@/components/promo/PromoOverlays"
@@ -17,9 +17,10 @@ export const metadata: Metadata = {
 }
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const [banners, categories] = await Promise.all([
+  const [banners, categories, sections] = await Promise.all([
     getLivePromoBanners(),
     getAllCategories().catch(() => []),
+    getCategorySlugsWithContent(),
   ])
   const takeovers = banners.filter((b) => isFullscreenFormat(b.format))
 
@@ -58,9 +59,9 @@ export default async function PublicLayout({ children }: { children: React.React
   return (
     <>
       <JsonLd data={jsonLd} />
-      <Navbar />
+      <Navbar sections={sections} />
       <main className="flex-1 pt-16">{children}</main>
-      <Footer />
+      <Footer sections={sections} />
       <PageviewTracker />
       {takeovers.length > 0 && (
         <PromoOverlays

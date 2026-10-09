@@ -18,8 +18,13 @@ const NAV_LINKS = [
   { label: "Interviews", href: "/interviews", color: "#c77dff" },
 ]
 
-export function Navbar() {
+/**
+ * `sections`: category slugs that have published posts. A menu link is only shown once its
+ * section has content, so an empty one (e.g. Interviews) appears by itself when it gets posts.
+ */
+export function Navbar({ sections }: { sections: string[] | null }) {
   const pathname = usePathname()
+  const links = sections ? NAV_LINKS.filter((link) => sections.includes(link.href.slice(1))) : NAV_LINKS
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [open, setOpen] = useState(false)
@@ -67,7 +72,7 @@ export function Navbar() {
 
           {/* Desktop nav */}
           <nav className="hidden min-[1160px]:flex items-center gap-1 flex-1">
-            {NAV_LINKS.map((link) => {
+            {links.map((link) => {
               const active = pathname.startsWith(link.href)
               return (
                 <Link
@@ -171,7 +176,7 @@ export function Navbar() {
 
         {/* Nav links */}
         <nav className="flex-1 flex flex-col justify-center px-8 gap-2 overflow-y-auto py-8">
-          {NAV_LINKS.map((link, i) => {
+          {links.map((link, i) => {
             const active = pathname.startsWith(link.href)
             return (
               <Link
@@ -212,7 +217,7 @@ export function Navbar() {
             style={{
               opacity: open ? 1 : 0,
               transform: open ? "translateY(0)" : "translateY(12px)",
-              transition: `opacity 0.35s ease ${0.05 + NAV_LINKS.length * 0.05}s, transform 0.35s ease ${0.05 + NAV_LINKS.length * 0.05}s`,
+              transition: `opacity 0.35s ease ${0.05 + links.length * 0.05}s, transform 0.35s ease ${0.05 + links.length * 0.05}s`,
               borderBottom: "1px solid var(--border)",
             }}
           >

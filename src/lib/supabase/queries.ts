@@ -388,3 +388,26 @@ export async function getRelatedPosts(post: PostWithRelations, limit = 4) {
 
   return withRelations(data as PostRow[])
 }
+
+/**
+ * Slugs of categories with at least one published post — the menus only link to these, so a
+ * section (e.g. Interviews) appears by itself once it has content. Cached with the posts.
+ */
+export const getCategorySlugsWithContent = unstable_cache(
+  async (): Promise<string[] | null> => {
+    const supabase = createPublicClient()
+    const { data, error } = await supabase
+      .from("categories")
+      .select("slug, posts!inner(id)")
+      .eq("posts.status", "published")
+      .limit(1, { foreignTable: "posts" })
+    if (error) {
+      // null = unknown: the menus then show every section rather than none.
+      console.error("Failed to load categories with content:", error.message)
+      return null
+    }
+    return (data ?? []).map((c) => c.slug as string)
+  },
+  ["getCategorySlugsWithContent"],
+  { tags: [POSTS_CACHE_TAG], revalidate: 300 }
+)
