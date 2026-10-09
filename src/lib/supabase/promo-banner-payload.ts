@@ -50,6 +50,7 @@ export const promoBannerSchema = z
       .min(1, "Choose at least one placement")
       .default(["rail", "feed", "article", "sidebar", "after_article"])
       .transform((list) => [...new Set(list)]),
+    repeat_in_spots: z.boolean().default(false),
     max_impressions: cap,
     max_clicks: cap,
     priority: z.number().int().min(-100).max(100).default(0),

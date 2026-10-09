@@ -116,6 +116,8 @@ export interface PromoBanner {
   device: PromoBannerDevice
   /** Standard banners only: which spots it may use (at least one) */
   placements: PromoSpot[]
+  /** Show once in each allowed spot on a page, instead of once per page */
+  repeat_in_spots: boolean
   /** The banner stops showing once either total is reached (null = no cap) */
   max_impressions: number | null
   max_clicks: number | null

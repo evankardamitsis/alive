@@ -7,6 +7,9 @@ import type { PromoSpot } from "@/types"
 // already sorted by priority and weight) that is allowed in that spot, suits the screen, and is
 // not already showing on the same screen. The page renders separate phone and desktop picks per
 // slot and CSS shows the right one, so "same screen" is tracked per screen-size tier.
+// A banner with "show in every chosen spot" (repeat_in_spots) may also fill a slot it's already
+// showing elsewhere on the page, once per kind of spot — but only when no banner that isn't on
+// the page yet can take the slot, so other campaigns always come first.
 
 /** phone <768px · tablet 768–1279px · laptop 1280–1439px · wide 1440px+ */
 type Tier = "phone" | "tablet" | "laptop" | "wide"
@@ -28,17 +31,21 @@ const RAIL_SLOTS_PER_SIDE = 3
 
 function planSlots(banners: PublicPromoBanner[], spots: PromoSpot[]): SlotPick[] {
   const used: Record<Tier, Set<string>> = { phone: new Set(), tablet: new Set(), laptop: new Set(), wide: new Set() }
+  // Repeating banners: which kinds of spot each has already filled, per device.
+  const repeated = { mobile: new Set<string>(), desktop: new Set<string>() }
 
   const pick = (spot: PromoSpot, tiers: Tier[], device: "mobile" | "desktop") => {
     if (tiers.length === 0) return null
+    const fits = (b: PublicPromoBanner) =>
+      (b.placements ?? ALL_SPOTS).includes(spot) && b.device !== (device === "mobile" ? "desktop" : "mobile")
     const banner =
-      banners.find(
-        (b) =>
-          (b.placements ?? ALL_SPOTS).includes(spot) &&
-          b.device !== (device === "mobile" ? "desktop" : "mobile") &&
-          tiers.every((t) => !used[t].has(b.id))
-      ) ?? null
-    if (banner) tiers.forEach((t) => used[t].add(banner.id))
+      banners.find((b) => fits(b) && tiers.every((t) => !used[t].has(b.id))) ??
+      banners.find((b) => fits(b) && b.repeat_in_spots && !repeated[device].has(`${spot}:${b.id}`)) ??
+      null
+    if (banner) {
+      tiers.forEach((t) => used[t].add(banner.id))
+      repeated[device].add(`${spot}:${banner.id}`)
+    }
     return banner
   }
 

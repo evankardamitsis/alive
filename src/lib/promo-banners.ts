@@ -92,6 +92,7 @@ export type PublicPromoBanner = Pick<
   | "article_scope"
   | "device"
   | "placements"
+  | "repeat_in_spots"
   | "priority"
   | "weight"
 >

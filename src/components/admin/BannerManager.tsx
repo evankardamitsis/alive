@@ -120,6 +120,7 @@ function emptyBanner(): BannerInput {
     article_scope: "all",
     device: "all",
     placements: [...ALL_PROMO_SPOTS],
+    repeat_in_spots: false,
     max_impressions: null,
     max_clicks: null,
     priority: 0,
@@ -147,6 +148,7 @@ function toPublic(b: Draft): PublicPromoBanner {
     article_scope: b.article_scope,
     device: b.device,
     placements: b.placements,
+    repeat_in_spots: b.repeat_in_spots,
     priority: b.priority,
     weight: b.weight,
   }
@@ -729,9 +731,23 @@ function BannerForm({
                     </Chip>
                   ))}
                 </div>
-                <p className="text-[11px]" style={{ color: "var(--fg-3)" }}>
-                  Hover a placement for where it sits. Each banner shows at most once per page.
-                </p>
+                <p className="text-[11px]" style={{ color: "var(--fg-3)" }}>Hover a placement for where it sits.</p>
+                <div className="pt-2">
+                  <OptionRow
+                    label="Show in every chosen spot"
+                    hint={
+                      form.repeat_in_spots
+                        ? "Appears once in each placement above, in spots no other banner takes"
+                        : "Off: appears once per page, in the first free placement"
+                    }
+                  >
+                    <Switch
+                      label="Show in every chosen spot"
+                      checked={form.repeat_in_spots}
+                      onChange={(v) => set("repeat_in_spots", v)}
+                    />
+                  </OptionRow>
+                </div>
               </div>
             )}
           </Section>
@@ -1003,6 +1019,7 @@ export function BannerManager({ initial, categories, totals }: Props) {
           .join(", ")
       )
     }
+    if (b.format === "standard" && b.repeat_in_spots) parts.push("Every chosen spot")
     return parts.join(" · ") || "Nowhere"
   }
 
