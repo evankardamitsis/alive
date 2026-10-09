@@ -6,7 +6,7 @@ import { DEFAULT_DESCRIPTION, SITE_NAME } from "@/lib/metadata"
 import { getSiteUrl, siteUrl } from "@/lib/site"
 import { getAllCategories, getCategorySlugsWithContent } from "@/lib/supabase/queries"
 import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
-import { isFullscreenFormat } from "@/lib/promo-banners"
+import { bannerFormats, isFullscreenFormat } from "@/lib/promo-banners"
 import { PromoOverlays } from "@/components/promo/PromoOverlays"
 import { PageviewTracker } from "@/components/analytics/PageviewTracker"
 
@@ -22,7 +22,7 @@ export default async function PublicLayout({ children }: { children: React.React
     getAllCategories().catch(() => []),
     getCategorySlugsWithContent(),
   ])
-  const takeovers = banners.filter((b) => isFullscreenFormat(b.format))
+  const takeovers = banners.filter((b) => bannerFormats(b).some(isFullscreenFormat))
 
   const baseUrl = getSiteUrl()
   const organizationId = `${baseUrl}/#organization`

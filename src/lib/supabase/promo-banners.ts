@@ -4,7 +4,7 @@ import { createAdminClient } from "./admin"
 import { ALL_PROMO_SPOTS, PROMO_BANNERS_CACHE_TAG, type PublicPromoBanner } from "@/lib/promo-banners"
 
 const PUBLIC_SELECT =
-  "id, image_url, image_width, image_height, mobile_image_url, mobile_image_width, mobile_image_height, alt_text, destination_url, format, show_on_home, category_scope, category_ids, article_scope, device, placements, repeat_in_spots, priority, weight, max_impressions, max_clicks"
+  "id, image_url, image_width, image_height, mobile_image_url, mobile_image_width, mobile_image_height, alt_text, destination_url, format, formats, show_on_home, category_scope, category_ids, article_scope, device, placements, repeat_in_spots, priority, weight, max_impressions, max_clicks"
 
 type LiveRow = PublicPromoBanner & { max_impressions: number | null; max_clicks: number | null }
 
@@ -74,7 +74,7 @@ async function fetchLivePromoBanners(): Promise<PublicPromoBanner[]> {
  */
 export async function getLivePromoBanners(): Promise<PublicPromoBanner[]> {
   // Bump the version when the selected columns change, so stale cached rows are never reused.
-  return unstable_cache(fetchLivePromoBanners, ["getLivePromoBanners", "v3"], {
+  return unstable_cache(fetchLivePromoBanners, ["getLivePromoBanners", "v4"], {
     tags: [PROMO_BANNERS_CACHE_TAG],
     revalidate: 60,
   })()

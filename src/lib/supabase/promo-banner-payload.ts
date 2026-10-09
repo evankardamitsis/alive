@@ -37,7 +37,10 @@ export const promoBannerSchema = z
       .optional()
       .transform((v) => (v ? v : null)),
     destination_url: destinationUrl,
-    format: z.enum(["standard", "interstitial", "prestitial", "special_boost"]),
+    formats: z
+      .array(z.enum(["standard", "interstitial", "prestitial", "special_boost"]))
+      .min(1, "Choose at least one format")
+      .transform((list) => [...new Set(list)]),
     starts_at: isoDate,
     ends_at: isoDate,
     show_on_home: z.boolean(),
@@ -75,6 +78,8 @@ export const promoBannerSchema = z
   })
   .transform((b) => ({
     ...b,
+    // The legacy single column holds the first format (a database trigger keeps them in step).
+    format: b.formats[0],
     category_ids: b.category_scope === "selected" ? b.category_ids : [],
     mobile_image_width: b.mobile_image_url ? b.mobile_image_width : null,
     mobile_image_height: b.mobile_image_url ? b.mobile_image_height : null,

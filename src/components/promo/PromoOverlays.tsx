@@ -7,18 +7,23 @@ import { Logo } from "@/components/Logo"
 import {
   bannerShowsOnDevice,
   bannerTargetsPage,
+  hasFormat,
   MOBILE_MEDIA_QUERY,
   pickByPriority,
   type PromoPage,
   type PublicPromoBanner,
 } from "@/lib/promo-banners"
+import type { PromoBannerFormat } from "@/types"
 import { PromoLink, PromoPicture } from "./PromoVisual"
+
+type OverlayFormat = Exclude<PromoBannerFormat, "standard">
 
 // Full-screen promo formats:
 //   prestitial    → first page of the visit, before the visitor reads anything. Once per session.
 //   interstitial  → on in-site navigation (any page view after the first). Once per session.
 //   special_boost → popup with the visual on page load. Once per day per visitor.
-// At most one overlay per page view.
+// At most one overlay per page view. A banner can run as several formats; each format has its
+// own frequency cap, so a banner's prestitial doesn't stop its interstitial later in the visit.
 
 /** Prestitials / interstitials close themselves after this many seconds. */
 const AUTO_CLOSE_SECONDS = 10
@@ -41,17 +46,17 @@ function storageSet(store: "session" | "local", key: string, value: string) {
   }
 }
 
-function canShow(banner: PublicPromoBanner) {
-  if (banner.format === "special_boost") {
+function canShow(banner: PublicPromoBanner, format: OverlayFormat) {
+  if (format === "special_boost") {
     const last = Number(storageGet("local", `boost:${banner.id}`) ?? 0)
     return Date.now() - last > BOOST_COOLDOWN_MS
   }
-  return !storageGet("session", `seen:${banner.id}`)
+  return !storageGet("session", `seen:${format}:${banner.id}`)
 }
 
-function markShown(banner: PublicPromoBanner) {
-  if (banner.format === "special_boost") storageSet("local", `boost:${banner.id}`, String(Date.now()))
-  else storageSet("session", `seen:${banner.id}`, "1")
+function markShown(banner: PublicPromoBanner, format: OverlayFormat) {
+  if (format === "special_boost") storageSet("local", `boost:${banner.id}`, String(Date.now()))
+  else storageSet("session", `seen:${format}:${banner.id}`, "1")
 }
 
 /** Homepage, a category page (/culture) or an article (/culture/some-article). */
@@ -75,7 +80,7 @@ export function PromoOverlays({
   categories: { id: string; slug: string }[]
 }) {
   const pathname = usePathname()
-  const [active, setActive] = useState<PublicPromoBanner | null>(null)
+  const [active, setActive] = useState<{ banner: PublicPromoBanner; format: OverlayFormat } | null>(null)
 
   useEffect(() => {
     // Deferred so the overlay appears after the page underneath has hydrated. All storage
@@ -90,18 +95,24 @@ export function PromoOverlays({
       if (!page) return
 
       const isMobile = window.matchMedia(MOBILE_MEDIA_QUERY).matches
-      const eligible = banners.filter(
-        (b) => bannerTargetsPage(b, page) && bannerShowsOnDevice(b, isMobile) && canShow(b)
-      )
-      const takeoverFormat = firstViewOfSession ? "prestitial" : "interstitial"
+      const eligible = (format: OverlayFormat) =>
+        banners.filter(
+          (b) =>
+            hasFormat(b, format) && bannerTargetsPage(b, page) && bannerShowsOnDevice(b, isMobile) && canShow(b, format)
+        )
+      const takeoverFormat: OverlayFormat = firstViewOfSession ? "prestitial" : "interstitial"
       // Per visitor: the highest-priority banner of the format, chosen by weight among equals.
-      const pick =
-        pickByPriority(eligible.filter((b) => b.format === takeoverFormat)) ??
-        pickByPriority(eligible.filter((b) => b.format === "special_boost"))
-      if (!pick) return
+      const takeover = pickByPriority(eligible(takeoverFormat))
+      const boost = takeover ? null : pickByPriority(eligible("special_boost"))
+      const next = takeover
+        ? { banner: takeover, format: takeoverFormat }
+        : boost
+          ? { banner: boost, format: "special_boost" as const }
+          : null
+      if (!next) return
 
-      markShown(pick)
-      setActive(pick)
+      markShown(next.banner, next.format)
+      setActive(next)
     }, 0)
     return () => window.clearTimeout(id)
   }, [pathname, banners, categories])
@@ -110,9 +121,9 @@ export function PromoOverlays({
 
   if (!active) return null
   return active.format === "special_boost" ? (
-    <SpecialBoost key={active.id} banner={active} onClose={close} />
+    <SpecialBoost key={active.banner.id} banner={active.banner} onClose={close} />
   ) : (
-    <Takeover key={active.id} banner={active} onClose={close} />
+    <Takeover key={`${active.format}:${active.banner.id}`} banner={active.banner} format={active.format} onClose={close} />
   )
 }
 
@@ -138,7 +149,15 @@ function useModal(onClose: () => void) {
 }
 
 /** Prestitial / interstitial: page-covering takeover with a countdown and "continue to site". */
-export function Takeover({ banner, onClose }: { banner: PublicPromoBanner; onClose: () => void }) {
+export function Takeover({
+  banner,
+  format,
+  onClose,
+}: {
+  banner: PublicPromoBanner
+  format: "prestitial" | "interstitial"
+  onClose: () => void
+}) {
   const closeRef = useModal(onClose)
   const [secondsLeft, setSecondsLeft] = useState(AUTO_CLOSE_SECONDS)
 
@@ -151,7 +170,7 @@ export function Takeover({ banner, onClose }: { banner: PublicPromoBanner; onClo
     if (secondsLeft <= 0) onClose()
   }, [secondsLeft, onClose])
 
-  const isPrestitial = banner.format === "prestitial"
+  const isPrestitial = format === "prestitial"
 
   return (
     <div
@@ -199,7 +218,7 @@ export function Takeover({ banner, onClose }: { banner: PublicPromoBanner; onClo
         )}
         <PromoLink
           banner={banner}
-          placement={banner.format === "prestitial" ? "prestitial" : "interstitial"}
+          placement={format}
           onClick={onClose}
           className="block min-h-0 max-w-full overflow-hidden rounded-xl"
         >

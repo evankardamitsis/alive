@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { ArrowDownRight, ArrowUpRight, Eye, Megaphone, MousePointerClick, Users } from "lucide-react"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { PROMO_FORMAT_LABELS, promoBannerStatus } from "@/lib/promo-banners"
+import { formatLabels, promoBannerStatus } from "@/lib/promo-banners"
 import { Donut, Sparkline, TrafficChart, type DailyPoint } from "@/components/admin/analytics/Charts"
 import { InternalTrafficToggle } from "@/components/admin/analytics/InternalTrafficToggle"
 import type { PromoBanner } from "@/types"
@@ -32,7 +32,7 @@ type TopPage = { path: string; pageviews: number; visitors: number }
 type Referrer = { referrer: string; visitors: number }
 type Device = { device: string; visitors: number }
 type BannerStat = { banner_id: string; placement: string | null; impressions: number; clicks: number }
-type BannerInfo = Pick<PromoBanner, "id" | "name" | "format" | "image_url" | "is_active" | "starts_at" | "ends_at">
+type BannerInfo = Pick<PromoBanner, "id" | "name" | "format" | "formats" | "image_url" | "is_active" | "starts_at" | "ends_at">
 
 const nf = new Intl.NumberFormat("el-GR")
 const fmt = (n: number) => nf.format(n)
@@ -233,7 +233,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     supabase.rpc("analytics_top_referrers", { ...args, p_limit: 6 }),
     supabase.rpc("analytics_devices", args),
     supabase.rpc("analytics_banner_stats", args),
-    supabase.from("promo_banners").select("id, name, format, image_url, is_active, starts_at, ends_at"),
+    supabase.from("promo_banners").select("id, name, format, formats, image_url, is_active, starts_at, ends_at"),
   ])
 
   const setupError = totalsRes.error
@@ -469,7 +469,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold" style={{ color: "var(--fg)" }}>{b?.name ?? "Deleted banner"}</p>
                     <p className="mt-0.5 flex flex-wrap gap-x-2 text-xs" style={{ color: "var(--fg-3)" }}>
-                      {b && <span>{PROMO_FORMAT_LABELS[b.format]}</span>}
+                      {b && <span>{formatLabels(b)}</span>}
                       {status && <span className="capitalize">· {status}</span>}
                       {s.byPlacement.map((p) => (
                         <span key={p.placement ?? "other"}>

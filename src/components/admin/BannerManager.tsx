@@ -29,6 +29,9 @@ import {
   PROMO_DEVICES,
   PROMO_FORMATS,
   PROMO_FORMAT_LABELS,
+  bannerFormats,
+  formatLabels,
+  hasFormat,
   PROMO_SPOTS,
   promoBannerStatus,
   type PromoBannerStatus,
@@ -113,6 +116,7 @@ function emptyBanner(): BannerInput {
     alt_text: null,
     destination_url: "",
     format: "standard",
+    formats: ["standard"],
     ...defaultDates(),
     show_on_home: true,
     category_scope: "all",
@@ -141,7 +145,8 @@ function toPublic(b: Draft): PublicPromoBanner {
     mobile_image_height: b.mobile_image_height,
     alt_text: b.alt_text,
     destination_url: b.destination_url || "#",
-    format: b.format,
+    format: b.formats[0] ?? b.format,
+    formats: b.formats,
     show_on_home: b.show_on_home,
     category_scope: b.category_scope,
     category_ids: b.category_ids,
@@ -470,6 +475,88 @@ function VisualField({
   )
 }
 
+/**
+ * Preview button: previews straight away for a single format, otherwise asks which format.
+ * `children` is the button's content; the menu opens above or below it.
+ */
+function PreviewPicker({
+  formats,
+  onPick,
+  className,
+  title,
+  ariaLabel,
+  menuSide = "below",
+  children,
+}: {
+  formats: PromoBannerFormat[]
+  onPick: (format: PromoBannerFormat) => void
+  className: string
+  title?: string
+  ariaLabel?: string
+  menuSide?: "above" | "below"
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onDown(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", onDown)
+    return () => document.removeEventListener("mousedown", onDown)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        title={title}
+        aria-label={ariaLabel}
+        aria-haspopup={formats.length > 1 ? "menu" : undefined}
+        aria-expanded={formats.length > 1 ? open : undefined}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (formats.length === 1) onPick(formats[0])
+          else setOpen((v) => !v)
+        }}
+        className={className}
+      >
+        {children}
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className={`absolute z-30 w-48 overflow-hidden rounded-lg py-1 shadow-xl ${
+            menuSide === "above" ? "bottom-full left-0 mb-1" : "right-0 top-full mt-1"
+          }`}
+          style={{ backgroundColor: "var(--bg)", border: "1px solid var(--border)" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="px-3 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-3)" }}>
+            Preview as
+          </p>
+          {formats.map((f) => (
+            <button
+              key={f}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false)
+                onPick(f)
+              }}
+              className="flex w-full cursor-pointer items-center px-3 py-2 text-left text-sm text-[var(--fg)] transition-colors hover:bg-[var(--bg-3)]"
+            >
+              {PROMO_FORMAT_LABELS[f]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Form (side panel) ──────────────────────────────────────
 
 function BannerForm({
@@ -487,9 +574,9 @@ function BannerForm({
   const [startsAt, setStartsAt] = useState(toDateTimeLocalValue(initial.starts_at))
   const [endsAt, setEndsAt] = useState(toDateTimeLocalValue(initial.ends_at))
   const [saving, setSaving] = useState(false)
-  const [previewing, setPreviewing] = useState(false)
+  const [previewing, setPreviewing] = useState<PromoBannerFormat | null>(null)
   const isEdit = Boolean(initial.id)
-  const isStandard = form.format === "standard"
+  const isStandard = form.formats.includes("standard")
   const hasAdvanced =
     initial.device !== "all" ||
     initial.priority !== 0 ||
@@ -509,7 +596,7 @@ function BannerForm({
   // Escape closes the panel (unless a preview is open; it handles Escape itself).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !previewing) onClose()
+      if (e.key === "Escape" && previewing === null) onClose()
     }
     window.addEventListener("keydown", onKey)
     const prevOverflow = document.body.style.overflow
@@ -538,6 +625,7 @@ function BannerForm({
       return void toast.error("“Same categories” for articles needs category pages set to All or Selected")
     if (!form.show_on_home && form.category_scope === "none" && form.article_scope === "none")
       return void toast.error("Choose at least one page where the banner appears")
+    if (form.formats.length === 0) return void toast.error("Choose at least one format")
     if (isStandard && form.placements.length === 0) return void toast.error("Choose at least one placement")
 
     setSaving(true)
@@ -545,8 +633,8 @@ function BannerForm({
     setSaving(false)
   }
 
-  const selectedFormat = PROMO_FORMATS.find((f) => f.value === form.format)
-  const hints = SIZE_HINTS[form.format]
+  // Size hints follow the first chosen format (one set of visuals serves all formats).
+  const hints = SIZE_HINTS[form.formats[0] ?? "standard"]
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -611,14 +699,44 @@ function BannerForm({
             </div>
           </Section>
 
-          <Section title="Format">
-            <Segmented
-              label="Format"
-              value={form.format}
-              onChange={(v) => set("format", v)}
-              options={PROMO_FORMATS.map((f) => ({ value: f.value, label: f.label }))}
-            />
-            <p className="text-xs" style={{ color: "var(--fg-3)" }}>{selectedFormat?.description}</p>
+          <Section title="Formats" description="Choose one or more. The banner runs as each format you tick.">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {PROMO_FORMATS.map((f) => {
+                const on = form.formats.includes(f.value)
+                return (
+                  <button
+                    key={f.value}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setForm((prev) => ({ ...prev, formats: toggleIn(prev.formats, f.value) }))}
+                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-left transition-colors duration-150 ${
+                      on
+                        ? "border-[#e63946] bg-[rgba(230,57,70,0.06)]"
+                        : "border-[var(--border)] bg-[var(--bg)] hover:border-[var(--fg-3)]"
+                    }`}
+                  >
+                    <span
+                      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded ${
+                        on ? "bg-[#e63946] text-white" : "border border-[var(--border)]"
+                      }`}
+                    >
+                      {on && <Check size={11} strokeWidth={3} />}
+                    </span>
+                    <span>
+                      <span className="block text-sm font-semibold" style={{ color: "var(--fg)" }}>{f.label}</span>
+                      <span className="mt-0.5 block text-xs leading-snug" style={{ color: "var(--fg-3)" }}>
+                        {f.description}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            {form.formats.length > 1 && (
+              <p className="text-[11px]" style={{ color: "var(--fg-3)" }}>
+                The same visuals are used for every format; full-screen formats scale them to fit the screen.
+              </p>
+            )}
           </Section>
 
           <Section title="Visuals">
@@ -859,15 +977,17 @@ function BannerForm({
           className="flex items-center justify-between gap-2 border-t px-5 py-3 sm:px-6"
           style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-2)" }}
         >
-          <button
-            type="button"
-            onClick={() => (form.image_url ? setPreviewing(true) : toast.error("Add a key visual to preview"))}
+          <PreviewPicker
+            formats={form.formats.length ? form.formats : ["standard"]}
+            menuSide="above"
+            onPick={(f) => (form.image_url ? setPreviewing(f) : toast.error("Add a key visual to preview"))}
             className={`${outlineButton} px-3 py-2 text-sm`}
             title="See how it looks on the site before saving"
           >
             <Eye size={14} />
             Preview
-          </button>
+            {form.formats.length > 1 && <ChevronDown size={13} />}
+          </PreviewPicker>
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className={`${outlineButton} px-3 py-2 text-sm`}>
               Cancel
@@ -879,7 +999,7 @@ function BannerForm({
           </div>
         </div>
       </form>
-      {previewing && <BannerPreview banner={toPublic(form)} onClose={() => setPreviewing(false)} />}
+      {previewing && <BannerPreview banner={toPublic(form)} format={previewing} onClose={() => setPreviewing(null)} />}
     </div>
   )
 }
@@ -995,7 +1115,7 @@ export function BannerManager({ initial, categories, totals }: Props) {
   const [banners, setBanners] = useState(initial)
   // The banner open in the side panel: a new draft, a copy, or an existing banner.
   const [editing, setEditing] = useState<Draft | null>(null)
-  const [previewing, setPreviewing] = useState<PromoBanner | null>(null)
+  const [previewing, setPreviewing] = useState<{ banner: PromoBanner; format: PromoBannerFormat } | null>(null)
   const [filter, setFilter] = useState<PromoBannerStatus | "all">("all")
 
   const categoryNames = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories])
@@ -1011,7 +1131,7 @@ export function BannerManager({ initial, categories, totals }: Props) {
     if (b.article_scope !== "none") parts.push("Articles")
     if (b.device === "desktop") parts.push("Desktop only")
     if (b.device === "mobile") parts.push("Phones only")
-    if (b.format === "standard" && b.placements.length < ALL_PROMO_SPOTS.length) {
+    if (hasFormat(b, "standard") && b.placements.length < ALL_PROMO_SPOTS.length) {
       parts.push(
         b.placements
           .map((p) => PROMO_SPOTS.find((s) => s.value === p)?.label)
@@ -1019,7 +1139,7 @@ export function BannerManager({ initial, categories, totals }: Props) {
           .join(", ")
       )
     }
-    if (b.format === "standard" && b.repeat_in_spots) parts.push("Every chosen spot")
+    if (hasFormat(b, "standard") && b.repeat_in_spots) parts.push("Every chosen spot")
     return parts.join(" · ") || "Nowhere"
   }
 
@@ -1139,7 +1259,7 @@ export function BannerManager({ initial, categories, totals }: Props) {
                     <span className={`h-1.5 w-1.5 rounded-full ${STATUS_STYLES[status].dot}`} />
                     {STATUS_STYLES[status].label}
                   </span>
-                  <span className="text-[11px]" style={{ color: "var(--fg-3)" }}>{PROMO_FORMAT_LABELS[banner.format]}</span>
+                  <span className="text-[11px]" style={{ color: "var(--fg-3)" }}>{formatLabels(banner)}</span>
                 </div>
                 <p className="mt-0.5 truncate text-xs" style={{ color: "var(--fg-3)" }} title={`${formatDateTime(banner.starts_at)} → ${formatDateTime(banner.ends_at)}`}>
                   {shortDate(banner.starts_at)} → {shortDate(banner.ends_at)} · {whereSummary(banner)}
@@ -1160,9 +1280,17 @@ export function BannerManager({ initial, categories, totals }: Props) {
               </div>
 
               <div className="flex items-center">
-                <ActionButton label="Preview" hint="See how it looks on the site" onClick={() => setPreviewing(banner)}>
-                  <Eye size={16} />
-                </ActionButton>
+                <span className="group/action relative inline-flex">
+                  <PreviewPicker
+                    formats={bannerFormats(banner)}
+                    onPick={(format) => setPreviewing({ banner, format })}
+                    ariaLabel="Preview banner"
+                    title="Preview: see how it looks on the site"
+                    className="cursor-pointer rounded-md p-2 text-[var(--fg-3)] transition-colors duration-150 hover:bg-[var(--bg-3)] hover:text-[var(--fg)]"
+                  >
+                    <Eye size={16} />
+                  </PreviewPicker>
+                </span>
                 <ActionButton label="Edit" hint="Visuals, dates and where it shows" onClick={() => setEditing(banner)}>
                   <Pencil size={16} />
                 </ActionButton>
@@ -1197,7 +1325,9 @@ export function BannerManager({ initial, categories, totals }: Props) {
           onClose={() => setEditing(null)}
         />
       )}
-      {previewing && <BannerPreview banner={toPublic(previewing)} onClose={() => setPreviewing(null)} />}
+      {previewing && (
+        <BannerPreview banner={toPublic(previewing.banner)} format={previewing.format} onClose={() => setPreviewing(null)} />
+      )}
     </div>
   )
 }

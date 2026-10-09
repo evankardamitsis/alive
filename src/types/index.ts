@@ -106,7 +106,10 @@ export interface PromoBanner {
   mobile_image_height: number | null
   alt_text: string | null
   destination_url: string
+  /** First of `formats` (kept for older code); use `formats` */
   format: PromoBannerFormat
+  /** Formats this banner runs as (at least one), e.g. standard + special_boost */
+  formats: PromoBannerFormat[]
   starts_at: string
   ends_at: string
   show_on_home: boolean

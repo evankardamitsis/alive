@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { Logo } from "@/components/Logo";
+import Link from "next/link"
+import { Logo } from "@/components/Logo"
 
 /** `sections`: category slugs with published posts (see Navbar). */
 export function Footer({ sections }: { sections: string[] | null }) {
@@ -14,30 +14,17 @@ export function Footer({ sections }: { sections: string[] | null }) {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
             <Logo size="md" />
-            <p
-              className="mt-3 text-sm leading-relaxed"
-              style={{ color: "var(--fg-2)" }}
-            >
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--fg-2)" }}>
               Το πρώτο community-first μουσικό blog στην Ελλάδα.
             </p>
           </div>
 
           <div>
-            <h3
-              className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em]"
-              style={{ color: "var(--fg-3)" }}
-            >
+            <h3 className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: "var(--fg-3)" }}>
               Sections
             </h3>
             <ul className="space-y-2.5">
-              {[
-                "Spotlight",
-                "Interviews",
-                "Reviews",
-                "Opinions",
-                "Liveshows",
-                "Culture",
-              ]
+              {["Spotlight", "Interviews", "Reviews", "Opinions", "Liveshows", "Culture"]
                 .filter((s) => !sections || sections.includes(s.toLowerCase()))
                 .map((s) => (
                   <li key={s}>
@@ -54,10 +41,7 @@ export function Footer({ sections }: { sections: string[] | null }) {
           </div>
 
           <div>
-            <h3
-              className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em]"
-              style={{ color: "var(--fg-3)" }}
-            >
+            <h3 className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: "var(--fg-3)" }}>
               About
             </h3>
             <ul className="space-y-2.5">
@@ -80,10 +64,7 @@ export function Footer({ sections }: { sections: string[] | null }) {
           </div>
 
           <div>
-            <h3
-              className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em]"
-              style={{ color: "var(--fg-3)" }}
-            >
+            <h3 className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: "var(--fg-3)" }}>
               Follow
             </h3>
             <ul className="space-y-2.5">
@@ -129,5 +110,5 @@ export function Footer({ sections }: { sections: string[] | null }) {
         </div>
       </div>
     </footer>
-  );
+  )
 }

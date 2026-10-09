@@ -86,6 +86,7 @@ export type PublicPromoBanner = Pick<
   | "alt_text"
   | "destination_url"
   | "format"
+  | "formats"
   | "show_on_home"
   | "category_scope"
   | "category_ids"
@@ -146,6 +147,24 @@ export const MOBILE_MEDIA_QUERY = "(max-width: 767px)"
 
 export function bannerShowsOnDevice(banner: Pick<PublicPromoBanner, "device">, isMobile: boolean) {
   return banner.device === "all" || banner.device === (isMobile ? "mobile" : "desktop")
+}
+
+/** Formats a banner runs as (falls back to the single legacy `format`). */
+export function bannerFormats(banner: Pick<PromoBanner, "format"> & { formats?: PromoBannerFormat[] | null }) {
+  return banner.formats?.length ? banner.formats : [banner.format]
+}
+
+export function hasFormat(
+  banner: Pick<PromoBanner, "format"> & { formats?: PromoBannerFormat[] | null },
+  format: PromoBannerFormat
+) {
+  return bannerFormats(banner).includes(format)
+}
+
+export function formatLabels(banner: Pick<PromoBanner, "format"> & { formats?: PromoBannerFormat[] | null }) {
+  return bannerFormats(banner)
+    .map((f) => PROMO_FORMAT_LABELS[f])
+    .join(" + ")
 }
 
 export function isFullscreenFormat(format: PromoBannerFormat) {

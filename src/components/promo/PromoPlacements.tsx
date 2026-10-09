@@ -1,4 +1,4 @@
-import { bannerTargetsPage, rotateByPriority, type PromoPage, type PublicPromoBanner } from "@/lib/promo-banners"
+import { bannerTargetsPage, hasFormat, rotateByPriority, type PromoPage, type PublicPromoBanner } from "@/lib/promo-banners"
 import { slotVariants, type SlotPick } from "@/lib/promo-plan"
 import { PromoLabel, PromoLink, PromoPicture } from "./PromoVisual"
 import { PromoRailStack } from "./PromoRailStack"
@@ -18,7 +18,7 @@ import { PromoRailStack } from "./PromoRailStack"
  * for 60s, so it rotates about once a minute across the site.
  */
 export function inlineBannersFor(banners: PublicPromoBanner[], page: PromoPage) {
-  return rotateByPriority(banners.filter((b) => b.format === "standard" && bannerTargetsPage(b, page)))
+  return rotateByPriority(banners.filter((b) => hasFormat(b, "standard") && bannerTargetsPage(b, page)))
 }
 
 /** Wraps page content with desktop side rails when there are banners to show. */
