@@ -1,17 +1,16 @@
 import { bannerTargetsPage, rotateByPriority, type PromoPage, type PublicPromoBanner } from "@/lib/promo-banners"
-import type { SlotPick } from "@/lib/promo-plan"
+import { slotVariants, type SlotPick } from "@/lib/promo-plan"
 import { PromoLabel, PromoLink, PromoPicture } from "./PromoVisual"
 import { PromoRailStack } from "./PromoRailStack"
 
 // Layout:
 //   ≥1440px  → sticky "skin" rails left & right of the content (160px, 300px from 1800px),
 //              stacking up to 3 banners per side on tall pages
-//   <1440px  → banners sit inside the feed instead (mobile, tablets, small laptops)
-// Breakpoints follow what Greek publishers do (skins only on wide screens, MPUs in-feed on mobile).
+//   all widths → banners between feed items and between article paragraphs
+// Breakpoints follow what Greek publishers do (skins only on wide screens).
 // Which banner goes in which slot is decided by lib/promo-plan (placements, devices, and each
-// banner at most once per screen). Device targeting: "mobile" = below 768px, "desktop" = 768px
-// and up; the server can't know the visitor's screen, so a slot renders a phone pick and a
-// desktop pick and CSS shows one.
+// banner at most once per screen). The server can't know the visitor's screen, so a slot renders
+// a pick per screen range (phone, 768–1439px, 1440px+) and CSS shows the right one.
 
 /**
  * Standard banners for the given page in rank order: highest priority first, banners of equal
@@ -70,8 +69,8 @@ function InFeedBanner({
 }
 
 /**
- * Banner between content. "feed" slots (homepage/category feed, after an article) hide where the
- * side rails take over (1440px+); "article" slots sit between paragraphs and show on every screen.
+ * Banner between content: the homepage/category feed, after an article ("feed"), or between an
+ * article's paragraphs ("article"). Each screen range shows its own pick.
  */
 export function PromoInFeed({
   pick,
@@ -82,28 +81,29 @@ export function PromoInFeed({
   placement?: "feed" | "article"
   className?: string
 }) {
-  if (!pick) return null
-  const { phone, desktop } = pick
-  const wide = placement === "feed" ? "min-[1440px]:hidden" : ""
-
-  if (phone && desktop && phone.id === desktop.id) {
-    return <InFeedBanner banner={phone} placement={placement} className={`${wide} ${className}`} />
-  }
   return (
     <>
-      {phone && <InFeedBanner banner={phone} placement={placement} className={`md:hidden ${className}`} />}
-      {desktop && (
-        <InFeedBanner banner={desktop} placement={placement} className={`max-md:hidden ${wide} ${className}`} />
-      )}
+      {slotVariants(pick).map(({ banner, className: screens }) => (
+        <InFeedBanner key={banner.id} banner={banner} placement={placement} className={`${screens} ${className}`} />
+      ))}
     </>
   )
 }
 
 /** Banner at the top of an article's right-hand sidebar (the sidebar shows from 1280px). */
-export function PromoSidebar({ banner, className = "" }: { banner: PublicPromoBanner | null; className?: string }) {
-  if (!banner) return null
+export function PromoSidebar({ pick }: { pick: SlotPick | undefined }) {
   return (
-    <aside aria-label="Διαφήμιση" className={className}>
+    <>
+      {slotVariants(pick).map(({ banner, className }) => (
+        <SidebarBanner key={banner.id} banner={banner} className={className} />
+      ))}
+    </>
+  )
+}
+
+function SidebarBanner({ banner, className }: { banner: PublicPromoBanner; className: string }) {
+  return (
+    <aside aria-label="Διαφήμιση" data-promo-slot="sidebar" className={className}>
       <PromoLabel className="mb-2" />
       <PromoLink banner={banner} placement="sidebar" className="mx-auto block w-fit max-w-full overflow-hidden rounded-xl">
         <PromoPicture

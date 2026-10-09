@@ -344,7 +344,7 @@ export default async function ArticlePage({ params }: Props) {
           {/* Sidebar */}
           <aside className="hidden xl:block">
             <div className="sticky top-6 space-y-8">
-              <PromoSidebar banner={promoPlan.sidebar} />
+              <PromoSidebar pick={promoPlan.sidebar} />
               {/* Author */}
               {post.author.show_on_site !== false && (
                 <Link
