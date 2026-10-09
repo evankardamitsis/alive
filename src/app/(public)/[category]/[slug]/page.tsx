@@ -83,6 +83,10 @@ export default async function ArticlePage({ params }: Props) {
   const contentChunks = promos.length > 0
     ? splitArticleForPromos(normalizeArticleImages(post.content))
     : [normalizeArticleImages(post.content)]
+  // Each banner once per page, handed out in order of value: in-article slots take positions
+  // 0…k-1, the sidebar k, the slot after the article k (phones) / k+1 (desktop), and the rails
+  // the rest from k+1 (the after-article slot is hidden where rails show, so they can share it).
+  const inArticleSlots = contentChunks.length - 1
   const readTime = estimateReadTime(post.content)
   const excerpt = articleDescription(post.excerpt, post.content, 260)
   const postUrl = siteUrl(`/${post.category.slug}/${post.slug}`)
@@ -152,7 +156,7 @@ export default async function ArticlePage({ params }: Props) {
   }
 
   return (
-    <PromoRails banners={promos}>
+    <PromoRails banners={promos} skip={inArticleSlots + 1}>
       <JsonLd data={jsonLd} />
       <ReadingProgress />
 
@@ -264,7 +268,7 @@ export default async function ArticlePage({ params }: Props) {
               </Fragment>
             ))}
 
-            <PromoInFeed banners={promos} slot={contentChunks.length - 1} className="mt-12" />
+            <PromoInFeed banners={promos} slot={inArticleSlots} desktopSlot={inArticleSlots + 1} className="mt-12" />
 
             {/* Tags */}
             {post.tags && post.tags.length > 0 && (
@@ -340,7 +344,7 @@ export default async function ArticlePage({ params }: Props) {
           {/* Sidebar */}
           <aside className="hidden xl:block">
             <div className="sticky top-6 space-y-8">
-              <PromoSidebar banners={promos} />
+              <PromoSidebar banners={promos} index={inArticleSlots} />
               {/* Author */}
               {post.author.show_on_site !== false && (
                 <Link

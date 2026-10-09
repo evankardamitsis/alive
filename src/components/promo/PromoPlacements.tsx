@@ -12,6 +12,11 @@ const MAX_PER_RAIL = 3
 // Breakpoints follow what Greek publishers do (skins only on wide screens, MPUs in-feed on mobile).
 // Device targeting: "mobile" = below 768px, "desktop" = 768px and up. The server can't know the
 // visitor's screen, so each feed slot renders a phone pick and a desktop pick and CSS shows one.
+//
+// Each banner shows at most once on a page (for what is visible at a given screen width): every
+// placement takes its own position in the rotated list, and runs out rather than repeating.
+// Feed slots and rails are never visible together, so on homepage and category pages both start
+// from the top of the list; article pages hand positions out in order (see the article page).
 
 /**
  * Standard banners for the given page in slot order: highest priority first, banners of equal
@@ -22,13 +27,9 @@ export function inlineBannersFor(banners: PublicPromoBanner[], page: PromoPage) 
   return rotateByPriority(banners.filter((b) => b.format === "standard" && bannerTargetsPage(b, page)))
 }
 
-/**
- * Rotate through banners so consecutive feed slots don't repeat the same one.
- * Each banner is used at most twice per page so a single campaign doesn't flood the feed.
- */
+/** The banner for a slot, or null once every banner has been used (banners never repeat). */
 export function bannerForSlot(banners: PublicPromoBanner[], slot: number) {
-  if (banners.length === 0 || slot >= banners.length * 2) return null
-  return banners[slot % banners.length]
+  return banners[slot] ?? null
 }
 
 const forDesktop = (banners: PublicPromoBanner[]) => banners.filter((b) => b.device !== "mobile")
@@ -37,22 +38,23 @@ const forMobile = (banners: PublicPromoBanner[]) => banners.filter((b) => b.devi
 /** Wraps page content with desktop side rails when there are banners to show. */
 export function PromoRails({
   banners,
+  skip = 0,
   children,
 }: {
   banners: PublicPromoBanner[]
+  /** Desktop banners already used by other placements visible alongside the rails */
+  skip?: number
   children: React.ReactNode
 }) {
   // Rails only exist on wide screens, so phone-only banners never go here.
-  const railBanners = forDesktop(banners)
+  const railBanners = forDesktop(banners).slice(skip)
   if (railBanners.length === 0) return <>{children}</>
 
-  // Top slots go by priority: left starts with the 1st banner, right with the 2nd. Further down
-  // each rail cycles through the rest (left: 1st, 3rd, 5th… then 2nd, 4th…; right the other way
-  // round), so tall pages fill both rails and the same banner never sits level on both sides.
-  const evens = railBanners.filter((_, i) => i % 2 === 0)
-  const odds = railBanners.filter((_, i) => i % 2 === 1)
-  const left = [...evens, ...odds].slice(0, MAX_PER_RAIL)
-  const right = railBanners.length > 1 ? [...odds, ...evens].slice(0, MAX_PER_RAIL) : left
+  // Banners alternate sides by priority (left: 1st, 3rd, 5th; right: 2nd, 4th, 6th) and stack
+  // down each rail on tall pages. No banner appears twice: with a single banner, only the left
+  // rail shows it.
+  const left = railBanners.filter((_, i) => i % 2 === 0).slice(0, MAX_PER_RAIL)
+  const right = railBanners.filter((_, i) => i % 2 === 1).slice(0, MAX_PER_RAIL)
 
   return (
     <div className="mx-auto max-w-[2280px] min-[1440px]:grid min-[1440px]:grid-cols-[160px_minmax(0,1fr)_160px] min-[1440px]:gap-4 min-[1440px]:px-4 min-[1800px]:grid-cols-[300px_minmax(0,1fr)_300px] min-[1800px]:gap-6 min-[1800px]:px-6">
@@ -97,16 +99,19 @@ function InFeedBanner({
 export function PromoInFeed({
   banners,
   slot,
+  desktopSlot = slot,
   placement = "feed",
   className = "",
 }: {
   banners: PublicPromoBanner[]
+  /** Position in the phone list (and the desktop list, unless desktopSlot is given) */
   slot: number
+  desktopSlot?: number
   placement?: "feed" | "article"
   className?: string
 }) {
   const mobile = bannerForSlot(forMobile(banners), slot)
-  const desktop = bannerForSlot(forDesktop(banners), slot)
+  const desktop = bannerForSlot(forDesktop(banners), desktopSlot)
   const wide = placement === "feed" ? "min-[1440px]:hidden" : ""
 
   if (mobile && desktop && mobile.id === desktop.id) {
@@ -124,12 +129,19 @@ export function PromoInFeed({
 
 /**
  * Banner at the top of an article's right-hand sidebar (the sidebar shows from 1280px).
- * Takes the second banner in the rotation, so it differs from the first in-article banner.
+ * `index` is its position in the desktop list, after the in-article banners.
  */
-export function PromoSidebar({ banners, className = "" }: { banners: PublicPromoBanner[]; className?: string }) {
-  const desktop = forDesktop(banners)
-  if (desktop.length === 0) return null
-  const banner = desktop[1 % desktop.length]
+export function PromoSidebar({
+  banners,
+  index,
+  className = "",
+}: {
+  banners: PublicPromoBanner[]
+  index: number
+  className?: string
+}) {
+  const banner = bannerForSlot(forDesktop(banners), index)
+  if (!banner) return null
   return (
     <aside aria-label="Διαφήμιση" className={className}>
       <PromoLabel className="mb-2" />
