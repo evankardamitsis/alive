@@ -4,8 +4,9 @@ import { useEffect, useRef } from "react"
 import { isExternalUrl, type PromoPlacement, type PublicPromoBanner } from "@/lib/promo-banners"
 import { track } from "@/lib/track"
 
-// Impressions count once per banner per page view: the same banner in both side rails,
-// or twice in one feed, is one impression. Clicks always count.
+// Impressions count once per banner per page view across its in-page slots (both side rails,
+// the feed, the article…), and separately for each full-screen format it runs as, so a pop-up
+// is counted even when the same banner also sits in the page. Clicks always count.
 let impressionPath = ""
 const seenOnPage = new Set<string>()
 
@@ -14,8 +15,10 @@ function recordImpression(banner: PublicPromoBanner, placement: PromoPlacement) 
     impressionPath = window.location.pathname
     seenOnPage.clear()
   }
-  if (seenOnPage.has(banner.id)) return
-  seenOnPage.add(banner.id)
+  const fullscreen = placement === "prestitial" || placement === "interstitial" || placement === "special_boost"
+  const key = fullscreen ? `${placement}:${banner.id}` : banner.id
+  if (seenOnPage.has(key)) return
+  seenOnPage.add(key)
   track({ type: "impression", bannerId: banner.id, placement })
 }
 

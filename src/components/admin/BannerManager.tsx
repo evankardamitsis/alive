@@ -72,7 +72,7 @@ type Draft = BannerInput & { id?: string }
 const ACCEPTED_IMAGE_TYPES = "image/jpeg,image/png,image/webp,image/gif"
 
 const SIZE_HINTS: Record<PromoBannerFormat, { key: string; mobile: string }> = {
-  standard: { key: "300×600 for side rails, or 300×250", mobile: "300×250 or 336×280" },
+  standard: { key: "300×600 — used in the side rails", mobile: "300×250 — used in the page on every screen" },
   prestitial: { key: "Landscape, e.g. 1920×1080", mobile: "Portrait, e.g. 1080×1920" },
   interstitial: { key: "Landscape, e.g. 1920×1080", mobile: "Portrait, e.g. 1080×1920" },
   special_boost: { key: "e.g. 1200×800 or 1080×1080", mobile: "e.g. 1080×1350" },
@@ -352,6 +352,7 @@ function VisualField({
   width,
   height,
   optional,
+  emptyText,
   onChange,
 }: {
   label: string
@@ -361,6 +362,8 @@ function VisualField({
   width: number | null
   height: number | null
   optional?: boolean
+  /** Shown in the empty box of an optional visual */
+  emptyText?: string
   onChange: (value: { url: string | null; width: number | null; height: number | null }) => void
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -424,7 +427,7 @@ function VisualField({
           <img src={url} alt="" className="max-h-full max-w-full object-contain" />
         ) : (
           <p className="px-4 text-center text-xs" style={{ color: "var(--fg-3)" }}>
-            {optional ? "Phones use the key visual" : "No visual yet"}
+            {optional ? emptyText ?? "Uses the key visual" : "No visual yet"}
           </p>
         )}
         {uploading && (
@@ -753,9 +756,10 @@ function BannerForm({
                 }
               />
               <VisualField
-                label="Phone visual"
+                label={isStandard ? "Small visual" : "Phone visual"}
                 icon={Smartphone}
                 hint={hints.mobile}
+                emptyText={isStandard ? "Not set: the key visual is used everywhere" : "Phones use the key visual"}
                 url={form.mobile_image_url}
                 width={form.mobile_image_width}
                 height={form.mobile_image_height}
@@ -852,15 +856,16 @@ function BannerForm({
                 <p className="text-[11px]" style={{ color: "var(--fg-3)" }}>Hover a placement for where it sits.</p>
                 <div className="pt-2">
                   <OptionRow
-                    label="Show in every chosen spot"
+                    label="Show in every chosen placement"
                     hint={
-                      form.repeat_in_spots
-                        ? "Appears once in each placement above, in spots no other banner takes"
-                        : "Off: appears once per page, in the first free placement"
+                      (form.repeat_in_spots
+                        ? "On: appears once in each placement above, in spots no other banner takes."
+                        : "Off: appears once per page, in the first free placement.") +
+                      " Applies to the Standard placements only; full-screen formats follow their own rules."
                     }
                   >
                     <Switch
-                      label="Show in every chosen spot"
+                      label="Show in every chosen placement"
                       checked={form.repeat_in_spots}
                       onChange={(v) => set("repeat_in_spots", v)}
                     />
@@ -1139,7 +1144,7 @@ export function BannerManager({ initial, categories, totals }: Props) {
           .join(", ")
       )
     }
-    if (hasFormat(b, "standard") && b.repeat_in_spots) parts.push("Every chosen spot")
+    if (hasFormat(b, "standard") && b.repeat_in_spots) parts.push("Every chosen placement")
     return parts.join(" · ") || "Nowhere"
   }
 

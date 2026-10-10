@@ -50,7 +50,7 @@ function StandardPreview({ banner, onClose }: { banner: PublicPromoBanner; onClo
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose])
 
-  const keyW = banner.image_width ?? 300
+  // In-page spots use the small visual on every screen; only the side rails use the key visual.
   const mobileUrl = banner.mobile_image_url ?? banner.image_url
   const mobileW = (banner.mobile_image_url ? banner.mobile_image_width : banner.image_width) ?? 300
   const showsDesktop = banner.device !== "mobile"
@@ -96,7 +96,7 @@ function StandardPreview({ banner, onClose }: { banner: PublicPromoBanner; onClo
               {inSidebar && (
                 <Frame title="Article sidebar" note="1280px and wider">
                   <img
-                    src={banner.image_url}
+                    src={mobileUrl}
                     alt=""
                     className="block h-auto max-h-[600px] w-[300px] rounded-lg object-contain"
                   />
@@ -116,12 +116,12 @@ function StandardPreview({ banner, onClose }: { banner: PublicPromoBanner; onClo
           )}
           <div className="flex flex-wrap items-start gap-6">
             {showsDesktop && inlineSpots.length > 0 && (
-              <Frame title="In the page" note={`Tablets and laptops · ${inlineNote}`}>
+              <Frame title="In the page" note={`Tablets and desktop · ${inlineNote}`}>
                 <img
-                  src={banner.image_url}
+                  src={mobileUrl}
                   alt=""
                   className="mx-auto block h-auto max-h-[600px] max-w-full rounded-xl object-contain"
-                  style={{ width: keyW }}
+                  style={{ width: mobileW }}
                 />
               </Frame>
             )}

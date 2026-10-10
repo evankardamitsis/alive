@@ -106,6 +106,24 @@ export function PromoPicture({
   )
 }
 
+/**
+ * The banner as its small visual: in-page slots (feed, in article, sidebar, after article) use
+ * the small visual (e.g. 300×250) on every screen; only the side rails use the tall key visual.
+ * Falls back to the key visual when no small visual is set.
+ */
+export function smallVisual(banner: PublicPromoBanner): PublicPromoBanner {
+  if (!banner.mobile_image_url) return banner
+  return {
+    ...banner,
+    image_url: banner.mobile_image_url,
+    image_width: banner.mobile_image_width,
+    image_height: banner.mobile_image_height,
+    mobile_image_url: null,
+    mobile_image_width: null,
+    mobile_image_height: null,
+  }
+}
+
 /** Small "ΔΙΑΦΗΜΙΣΗ" label shown above inline placements, as Greek publishers do. */
 export function PromoLabel({ className = "" }: { className?: string }) {
   return (

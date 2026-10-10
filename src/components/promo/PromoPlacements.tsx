@@ -1,6 +1,6 @@
 import { bannerTargetsPage, hasFormat, rotateByPriority, type PromoPage, type PublicPromoBanner } from "@/lib/promo-banners"
 import { slotVariants, type SlotPick } from "@/lib/promo-plan"
-import { PromoLabel, PromoLink, PromoPicture } from "./PromoVisual"
+import { PromoLabel, PromoLink, PromoPicture, smallVisual } from "./PromoVisual"
 import { PromoRailStack } from "./PromoRailStack"
 
 // Layout:
@@ -59,9 +59,9 @@ function InFeedBanner({
       <PromoLabel className="mb-2" />
       <PromoLink banner={banner} placement={placement} className="mx-auto block w-fit max-w-full overflow-hidden rounded-xl">
         <PromoPicture
-          banner={banner}
-          sizes="(max-width: 767px) 100vw, 970px"
-          className="mx-auto block h-auto max-h-[600px] w-[var(--promo-mw)] max-w-full object-contain md:w-[var(--promo-w)]"
+          banner={smallVisual(banner)}
+          sizes="(max-width: 767px) 100vw, 340px"
+          className="mx-auto block h-auto max-h-[600px] w-[var(--promo-w)] max-w-full object-contain"
         />
       </PromoLink>
     </aside>
@@ -107,7 +107,7 @@ function SidebarBanner({ banner, className }: { banner: PublicPromoBanner; class
       <PromoLabel className="mb-2" />
       <PromoLink banner={banner} placement="sidebar" className="mx-auto block w-fit max-w-full overflow-hidden rounded-xl">
         <PromoPicture
-          banner={banner}
+          banner={smallVisual(banner)}
           sizes="300px"
           className="mx-auto block h-auto max-h-[600px] w-[var(--promo-w)] max-w-full object-contain"
         />
