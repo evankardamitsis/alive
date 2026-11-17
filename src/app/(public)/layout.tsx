@@ -4,7 +4,7 @@ import { Footer } from "@/components/layout/Footer"
 import { JsonLd } from "@/components/JsonLd"
 import { DEFAULT_DESCRIPTION, SITE_NAME } from "@/lib/metadata"
 import { getSiteUrl, siteUrl } from "@/lib/site"
-import { getAllCategories, getCategorySlugsWithContent } from "@/lib/supabase/queries"
+import { getAllCategories } from "@/lib/supabase/queries"
 import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
 import { bannerFormats, isFullscreenFormat } from "@/lib/promo-banners"
 import { PromoOverlays } from "@/components/promo/PromoOverlays"
@@ -17,11 +17,13 @@ export const metadata: Metadata = {
 }
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const [banners, categories, sections] = await Promise.all([
+  const [banners, categoryList] = await Promise.all([
     getLivePromoBanners(),
-    getAllCategories().catch(() => []),
-    getCategorySlugsWithContent(),
+    getAllCategories().catch(() => null),
   ])
+  const categories = categoryList ?? []
+  // Menu sections: only categories that exist (null if unknown: show every section).
+  const sections = categoryList?.map((c) => c.slug) ?? null
   const takeovers = banners.filter((b) => bannerFormats(b).some(isFullscreenFormat))
 
   const baseUrl = getSiteUrl()

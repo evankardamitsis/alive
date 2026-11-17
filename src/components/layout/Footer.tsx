@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Logo } from "@/components/Logo"
 
-/** `sections`: category slugs with published posts (see Navbar). */
+/** `sections`: slugs of the categories that exist (see Navbar). */
 export function Footer({ sections }: { sections: string[] | null }) {
   return (
     <footer

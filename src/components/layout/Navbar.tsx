@@ -19,8 +19,8 @@ const NAV_LINKS = [
 ]
 
 /**
- * `sections`: category slugs that have published posts. A menu link is only shown once its
- * section has content, so an empty one (e.g. Interviews) appears by itself when it gets posts.
+ * `sections`: slugs of the categories that exist. A menu link is only shown when its category
+ * exists (with or without articles yet), so the menu never links to a missing page.
  */
 export function Navbar({ sections }: { sections: string[] | null }) {
   const pathname = usePathname()
