@@ -163,8 +163,8 @@ export default async function ArticlePage({ params }: Props) {
       {/* ── Split hero ── */}
       <div className="max-w-[1600px] mx-auto px-3 sm:px-6 xl:px-12 pt-4">
         <div
-          className="grid grid-cols-1 md:grid-cols-2 overflow-hidden rounded-2xl"
-          style={{ border: "1px solid var(--border)", minHeight: 480 }}
+          className="grid grid-cols-1 md:grid-cols-2 md:min-h-[480px] overflow-hidden rounded-2xl"
+          style={{ border: "1px solid var(--border)" }}
         >
           {/* Left — title block */}
           <div className="flex flex-col justify-between p-5 md:p-8 xl:p-12" style={{ backgroundColor: "var(--bg-2)" }}>
@@ -236,20 +236,23 @@ export default async function ArticlePage({ params }: Props) {
             </div>
           </div>
 
-          {/* Right — image */}
-          <div className="relative min-h-[260px] md:min-h-0">
+          {/* Right — image. Phones: first, full width, at the photo's own shape (nothing cropped;
+              very tall photos capped at 75% of the screen). Tablet/desktop: fills the right half. */}
+          <div className="relative order-first md:order-none">
             {post.cover_image_url ? (
               <Image
                 src={post.cover_image_url}
                 alt={post.cover_image_alt ?? post.title}
-                fill
+                // Typical cover size; it only reserves space until the real photo loads.
+                width={1280}
+                height={720}
                 sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-cover"
+                className="block h-auto max-h-[75svh] w-full object-cover md:absolute md:inset-0 md:h-full md:max-h-none"
                 style={{ objectPosition: "center 20%" }}
                 priority
               />
             ) : (
-              <div className="absolute inset-0" style={{ backgroundColor: "var(--bg-3)" }} />
+              <div className="absolute inset-0 hidden md:block" style={{ backgroundColor: "var(--bg-3)" }} />
             )}
           </div>
         </div>

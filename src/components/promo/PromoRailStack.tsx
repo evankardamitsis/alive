@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { PublicPromoBanner } from "@/lib/promo-banners"
-import { PromoLabel, PromoLink, PromoPicture } from "./PromoVisual"
+import { PromoLink, PromoPicture } from "./PromoVisual"
 
 /** Page height each stacked rail banner gets: about a screen of scrolling per banner. */
 const SEGMENT_MIN_HEIGHT = 900
@@ -10,7 +10,6 @@ const SEGMENT_MIN_HEIGHT = 900
 function RailBanner({ banner }: { banner: PublicPromoBanner }) {
   return (
     <div className="sticky top-20 pt-6">
-      <PromoLabel className="mb-2" />
       <PromoLink banner={banner} placement="rail" className="block overflow-hidden rounded-lg">
         <PromoPicture
           banner={banner}

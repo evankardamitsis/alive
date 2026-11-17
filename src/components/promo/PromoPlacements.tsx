@@ -1,6 +1,6 @@
 import { bannerTargetsPage, hasFormat, rotateByPriority, type PromoPage, type PublicPromoBanner } from "@/lib/promo-banners"
 import { slotVariants, type SlotPick } from "@/lib/promo-plan"
-import { PromoLabel, PromoLink, PromoPicture, smallVisual } from "./PromoVisual"
+import { PromoLink, PromoPicture, smallVisual } from "./PromoVisual"
 import { PromoRailStack } from "./PromoRailStack"
 
 // Layout:
@@ -56,7 +56,6 @@ function InFeedBanner({
 }) {
   return (
     <aside aria-label="Διαφήμιση" className={className}>
-      <PromoLabel className="mb-2" />
       <PromoLink banner={banner} placement={placement} className="mx-auto block w-fit max-w-full overflow-hidden rounded-xl">
         <PromoPicture
           banner={smallVisual(banner)}
@@ -104,7 +103,6 @@ export function PromoSidebar({ pick }: { pick: SlotPick | undefined }) {
 function SidebarBanner({ banner, className }: { banner: PublicPromoBanner; className: string }) {
   return (
     <aside aria-label="Διαφήμιση" data-promo-slot="sidebar" className={className}>
-      <PromoLabel className="mb-2" />
       <PromoLink banner={banner} placement="sidebar" className="mx-auto block w-fit max-w-full overflow-hidden rounded-xl">
         <PromoPicture
           banner={smallVisual(banner)}

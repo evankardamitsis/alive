@@ -188,11 +188,7 @@ export function Takeover({
         className="flex h-16 shrink-0 items-center justify-between px-4 sm:px-6"
         style={isPrestitial ? { borderBottom: "1px solid var(--border)" } : undefined}
       >
-        {isPrestitial ? (
-          <Logo size="sm" showTag={false} />
-        ) : (
-          <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/60">Διαφήμιση</span>
-        )}
+        {isPrestitial ? <Logo size="sm" showTag={false} /> : <span />}
         <button
           ref={closeRef}
           type="button"
@@ -211,11 +207,6 @@ export function Takeover({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-4">
-        {isPrestitial && (
-          <span className="text-[10px] font-medium uppercase tracking-[0.2em]" style={{ color: "var(--fg-3)" }}>
-            Διαφήμιση
-          </span>
-        )}
         <PromoLink
           banner={banner}
           placement={format}
@@ -280,9 +271,6 @@ export function SpecialBoost({ banner, onClose }: { banner: PublicPromoBanner; o
             className="block h-auto max-h-[calc(100dvh-4rem)] w-[var(--promo-mw)] max-w-[min(92vw,1200px,calc((100dvh-4rem)*var(--promo-mar)))] object-contain md:w-[var(--promo-w)] md:max-w-[min(92vw,1200px,calc((100dvh-4rem)*var(--promo-ar)))]"
           />
         </PromoLink>
-        <p className="mt-2 text-center text-[10px] font-medium uppercase tracking-[0.2em] text-white/60">
-          Διαφήμιση
-        </p>
       </div>
     </div>
   )

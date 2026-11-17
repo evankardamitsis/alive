@@ -29,12 +29,6 @@ function Frame({ title, note, children }: { title: string; note: string; childre
           border: "1px solid var(--border)",
         }}
       >
-        <p
-          className="mb-2 text-center text-[10px] font-medium uppercase tracking-[0.2em]"
-          style={{ color: "var(--fg-3)" }}
-        >
-          Διαφήμιση
-        </p>
         {children}
       </div>
     </div>

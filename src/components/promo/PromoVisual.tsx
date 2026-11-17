@@ -124,14 +124,4 @@ export function smallVisual(banner: PublicPromoBanner): PublicPromoBanner {
   }
 }
 
-/** Small "ΔΙΑΦΗΜΙΣΗ" label shown above inline placements, as Greek publishers do. */
-export function PromoLabel({ className = "" }: { className?: string }) {
-  return (
-    <p
-      className={`text-center text-[10px] font-medium uppercase tracking-[0.2em] ${className}`}
-      style={{ color: "var(--fg-3)" }}
-    >
-      Διαφήμιση
-    </p>
-  )
-}
+
