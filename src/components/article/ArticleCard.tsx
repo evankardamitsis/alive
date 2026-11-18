@@ -59,42 +59,48 @@ export function ArticleCard({ post, variant = "default" }: ArticleCardProps) {
   }
 
   if (variant === "featured") {
+    // Phones: the photo at its own shape with the text below, so nothing is cropped.
+    // Tablet and up: a wide banner with the text over the photo.
     return (
       <div
-        className="relative w-full overflow-hidden rounded-2xl mb-5 article-card-featured group"
+        className="relative w-full overflow-hidden rounded-2xl mb-5 group md:aspect-[16/7]"
         style={{ backgroundColor: "var(--bg-2)" }}
       >
         {post.cover_image_url && (
           <Image
             src={post.cover_image_url}
             alt={post.cover_image_alt ?? post.title}
-            fill
+            width={1280}
+            height={720}
             sizes="(max-width: 768px) 100vw, (max-width: 1600px) 90vw, 1440px"
-            className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+            className="block h-auto max-h-[75svh] w-full object-cover transition-transform duration-700 group-hover:scale-[1.02] md:absolute md:inset-0 md:h-full md:max-h-none"
             priority
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        <div className="absolute inset-0 hidden bg-gradient-to-t from-black/60 via-black/20 to-transparent md:block" />
         <Link href={href} className="absolute inset-0 z-0" aria-label={post.title} />
-        <div className="absolute bottom-0 left-0 right-0 z-10 p-6 md:p-8 lg:p-10 pointer-events-none">
+        <div className="relative z-10 p-5 pointer-events-none md:absolute md:bottom-0 md:left-0 md:right-0 md:p-8 lg:p-10">
           <CategoryPill category={post.category} />
           <Link href={href} className="pointer-events-auto block">
             <h2
-              className="mt-3 text-2xl md:text-3xl lg:text-4xl font-bold text-white leading-tight max-w-3xl hover:opacity-90 transition-opacity"
+              className="mt-3 text-2xl md:text-3xl lg:text-4xl font-bold leading-tight max-w-3xl text-[var(--fg)] md:text-white hover:opacity-90 transition-opacity"
               style={{ fontFamily: "var(--font-display)" }}
             >
               {post.title}
             </h2>
           </Link>
           {excerpt && (
-            <p className="mt-2 text-sm md:text-base text-white/75 line-clamp-2 max-w-2xl">
+            <p className="mt-2 text-sm md:text-base line-clamp-2 max-w-2xl text-[var(--fg-2)] md:text-white/75">
               {excerpt}
             </p>
           )}
-          <p className="mt-3 text-xs text-white/60 pointer-events-auto">
+          <p className="mt-3 text-xs pointer-events-auto text-[var(--fg-3)] md:text-white/60">
             {showAuthor && (
               <>
-                <AuthorCredit author={post.author} className="text-white/80 hover:text-white" />
+                <AuthorCredit
+                  author={post.author}
+                  className="text-[var(--fg-2)] hover:text-[var(--fg)] md:text-white/80 md:hover:text-white"
+                />
                 {" · "}
               </>
             )}
