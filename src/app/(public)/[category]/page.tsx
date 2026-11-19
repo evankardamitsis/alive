@@ -7,7 +7,7 @@ import { pageMetadata } from "@/lib/metadata"
 import { JsonLd } from "@/components/JsonLd"
 import { getSiteUrl, siteUrl } from "@/lib/site"
 import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
-import { PromoRails, PromoInFeed, inlineBannersFor } from "@/components/promo/PromoPlacements"
+import { PromoRails, PromoRow, inlineBannersFor } from "@/components/promo/PromoPlacements"
 import { planListingPage } from "@/lib/promo-plan"
 
 /** In-feed promo after every N grid cards (divisible by 1–4 columns so rows stay full). */
@@ -135,7 +135,7 @@ export default async function CategoryPage({ params }: Props) {
               </div>
             )}
 
-            <PromoInFeed pick={promos.feed[0]} className="mb-12" />
+            <PromoRow row={promos.feed[0]} className="mb-12" />
 
             {/* Grid */}
             {rest.length > 0 && (
@@ -145,7 +145,7 @@ export default async function CategoryPage({ params }: Props) {
                   return (
                     <Fragment key={post.id}>
                       <ArticleCard post={post} />
-                      {promoSlot !== null && <PromoInFeed pick={promos.feed[promoSlot]} className="col-span-full" />}
+                      {promoSlot !== null && <PromoRow row={promos.feed[promoSlot]} className="col-span-full" />}
                     </Fragment>
                   )
                 })}

@@ -1,4 +1,5 @@
 import Image from "next/image"
+import { CoverImage } from "./CoverImage"
 import Link from "next/link"
 import { formatDate, cleanExcerpt } from "@/lib/utils"
 import type { Author, PostWithRelations } from "@/types"
@@ -6,6 +7,8 @@ import type { Author, PostWithRelations } from "@/types"
 interface ArticleCardProps {
   post: PostWithRelations
   variant?: "default" | "compact" | "featured"
+  /** preload the photo (featured cards near the top of a page) */
+  priority?: boolean
 }
 
 function AuthorCredit({
@@ -26,7 +29,7 @@ function AuthorCredit({
   )
 }
 
-export function ArticleCard({ post, variant = "default" }: ArticleCardProps) {
+export function ArticleCard({ post, variant = "default", priority = true }: ArticleCardProps) {
   const href = `/${post.category.slug}/${post.slug}`
   const excerpt = cleanExcerpt(post.excerpt)
   const showAuthor = post.author.show_on_site !== false
@@ -74,7 +77,8 @@ export function ArticleCard({ post, variant = "default" }: ArticleCardProps) {
             height={720}
             sizes="(max-width: 768px) 100vw, (max-width: 1600px) 90vw, 1440px"
             className="block h-auto max-h-[75svh] w-full object-cover transition-transform duration-700 group-hover:scale-[1.02] md:absolute md:inset-0 md:h-full md:max-h-none"
-            priority
+            style={{ objectPosition: "center 20%" }}
+            priority={priority}
           />
         )}
         <div className="absolute inset-0 hidden bg-gradient-to-t from-black/60 via-black/20 to-transparent md:block" />
@@ -115,16 +119,15 @@ export function ArticleCard({ post, variant = "default" }: ArticleCardProps) {
     <div className="group">
       <Link href={href} className="block">
         <div
-          className="relative aspect-[3/2] overflow-hidden rounded-xl mb-3"
+          className="relative aspect-video overflow-hidden rounded-xl mb-3"
           style={{ backgroundColor: "var(--bg-2)" }}
         >
           {post.cover_image_url && (
-            <Image
+            <CoverImage
               src={post.cover_image_url}
               alt={post.cover_image_alt ?? post.title}
-              fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              className="transition-transform duration-500 group-hover:scale-[1.03]"
             />
           )}
         </div>

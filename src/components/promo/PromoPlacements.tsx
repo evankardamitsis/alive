@@ -1,5 +1,5 @@
 import { bannerTargetsPage, hasFormat, rotateByPriority, type PromoPage, type PublicPromoBanner } from "@/lib/promo-banners"
-import { slotVariants, type SlotPick } from "@/lib/promo-plan"
+import { slotVariants, type RowPick, type SlotPick } from "@/lib/promo-plan"
 import { PromoLink, PromoPicture, smallVisual } from "./PromoVisual"
 import { PromoRailStack } from "./PromoRailStack"
 
@@ -86,6 +86,49 @@ export function PromoInFeed({
         <InFeedBanner key={banner.id} banner={banner} placement={placement} className={`${screens} ${className}`} />
       ))}
     </>
+  )
+}
+
+// Row positions: the 2nd shows from 768px, the 3rd from 1280px (the planner leaves them empty on
+// smaller screens, and this hides them on tablets, which share a pick with laptops).
+const ROW_POSITION_CLASS = ["", "", "max-[1279px]:hidden"]
+
+/**
+ * A row of ads between sections of the homepage and category pages: a tinted panel holding up
+ * to three ads of the same 300×250 size side by side. Hidden on screens where the row is empty.
+ */
+export function PromoRow({ row, className = "" }: { row: RowPick | undefined; className?: string }) {
+  if (!row) return null
+  const has = (range: "phone" | "mid" | "wide") => row.some((p) => p[range])
+  if (!has("phone") && !has("mid") && !has("wide")) return null
+  const hide = [!has("phone") && "max-md:hidden", !has("mid") && "md:max-[1439px]:hidden", !has("wide") && "min-[1440px]:hidden"]
+    .filter(Boolean)
+    .join(" ")
+  return (
+    <div className={`${hide} ${className}`}>
+      <aside
+        aria-label="Διαφήμιση"
+        className="flex flex-wrap justify-center gap-4 rounded-2xl p-4 md:gap-6 md:p-6"
+        style={{ backgroundColor: "var(--bg-2)" }}
+      >
+        {row.flatMap((pick, i) =>
+          slotVariants(pick).map(({ banner, className: screens }) => (
+            <PromoLink
+              key={`${i}:${banner.id}`}
+              banner={banner}
+              placement="feed"
+              className={`${screens} ${ROW_POSITION_CLASS[i]} block aspect-[6/5] w-[300px] max-w-full overflow-hidden rounded-xl`}
+            >
+              <PromoPicture
+                banner={smallVisual(banner)}
+                sizes="300px"
+                className="block h-full w-full object-contain"
+              />
+            </PromoLink>
+          )),
+        )}
+      </aside>
+    </div>
   )
 }
 

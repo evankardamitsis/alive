@@ -3,6 +3,7 @@ import Link from "next/link"
 import type { Metadata } from "next"
 import { getHeroPost, getPublishedPosts, getCategorySpotlights } from "@/lib/supabase/queries"
 import { formatDate, cleanExcerpt } from "@/lib/utils"
+import { CoverImage } from "@/components/article/CoverImage"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { Logo } from "@/components/Logo"
 import {
@@ -13,7 +14,7 @@ import {
 } from "@/lib/metadata"
 import type { PostWithRelations } from "@/types"
 import { getLivePromoBanners } from "@/lib/supabase/promo-banners"
-import { PromoRails, PromoInFeed, inlineBannersFor } from "@/components/promo/PromoPlacements"
+import { PromoRails, PromoRow, inlineBannersFor } from "@/components/promo/PromoPlacements"
 import { planListingPage } from "@/lib/promo-plan"
 
 export const revalidate = 60
@@ -99,7 +100,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <PromoInFeed pick={promos.feed[0]} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-10" />
+      <PromoRow row={promos.feed[0]} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-10" />
 
       {/* ── Latest ── */}
       {latest.length > 0 && (
@@ -114,7 +115,7 @@ export default async function HomePage() {
       )}
 
       {latest.length > 0 && (
-        <PromoInFeed pick={promos.feed[1]} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12" />
+        <PromoRow row={promos.feed[1]} className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12" />
       )}
 
       {/* ── Category spotlights ── */}
@@ -126,34 +127,7 @@ export default async function HomePage() {
             <>
               {/* Mobile: feature + 2×2 grid */}
               <div className="md:hidden">
-                <Link
-                  href={`/${posts[0].category.slug}/${posts[0].slug}`}
-                  className="group relative block overflow-hidden rounded-2xl mb-4"
-                  style={{ aspectRatio: "2/3" }}
-                >
-                  {posts[0].cover_image_url && (
-                    <Image
-                      src={posts[0].cover_image_url}
-                      alt={posts[0].cover_image_alt ?? posts[0].title}
-                      fill
-                      sizes="(max-width: 639px) calc(100vw - 2rem), calc(100vw - 3rem)"
-                      className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-                    />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-5">
-                    <CategoryPill category={posts[0].category} />
-                    <h3
-                      className="mt-2 text-xl font-bold leading-tight text-white"
-                      style={{ fontFamily: "var(--font-display)" }}
-                    >
-                      {posts[0].title}
-                    </h3>
-                    <p className="mt-1 text-xs text-white/60">
-                      {formatDate(posts[0].published_at!)}
-                    </p>
-                  </div>
-                </Link>
+                <ArticleCard post={posts[0]} variant="featured" priority={false} />
                 <div className="grid grid-cols-2 gap-4">
                   {posts.slice(1, 5).map((post) => (
                     <ArticleCard key={post.id} post={post} />
@@ -170,12 +144,11 @@ export default async function HomePage() {
                 >
                   {posts[0].cover_image_url && (
                     <div className="relative overflow-hidden rounded-xl" style={{ aspectRatio: "16/9" }}>
-                      <Image
+                      <CoverImage
                         src={posts[0].cover_image_url}
                         alt={posts[0].cover_image_alt ?? posts[0].title}
-                        fill
                         sizes="50vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                        className="transition-transform duration-500 group-hover:scale-[1.02]"
                       />
                     </div>
                   )}
@@ -209,7 +182,7 @@ export default async function HomePage() {
             </>
           )}
           {sectionIndex % 2 === 1 && sectionIndex < spotlights.length - 1 && (
-            <PromoInFeed pick={promos.feed[2 + Math.floor(sectionIndex / 2)]} className="mt-12" />
+            <PromoRow row={promos.feed[2 + Math.floor(sectionIndex / 2)]} className="mt-12" />
           )}
         </section>
       ))}
@@ -250,30 +223,34 @@ function SectionLabel({ label, href, color }: { label: string; href?: string; co
 
 function HeroCard({ post }: { post: PostWithRelations }) {
   const href = `/${post.category.slug}/${post.slug}`
+  // Phones: the photo at its own shape with the text below, so nothing is cropped.
+  // From 768px: a tall card with the text over the photo.
   return (
-    <Link href={href} className="group relative block overflow-hidden" style={{ minHeight: 520 }}>
+    <Link href={href} className="group relative block overflow-hidden md:min-h-[520px]">
       {post.cover_image_url ? (
         <Image
           src={post.cover_image_url}
           alt={post.cover_image_alt ?? post.title}
-          fill
+          width={1280}
+          height={720}
           sizes="(max-width: 1024px) 100vw, 66vw"
-          className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+          className="block h-auto max-h-[75svh] w-full object-cover transition-transform duration-700 group-hover:scale-[1.02] md:absolute md:inset-0 md:h-full md:max-h-none"
+          style={{ objectPosition: "center 20%" }}
           priority
         />
       ) : (
-        <div className="absolute inset-0" style={{ backgroundColor: "var(--bg-2)" }} />
+        <div className="absolute inset-0 hidden md:block" style={{ backgroundColor: "var(--bg-2)" }} />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 p-5 md:p-8">
+      <div className="absolute inset-0 hidden bg-gradient-to-t from-black/75 via-black/20 to-transparent md:block" />
+      <div className="relative p-5 md:absolute md:bottom-0 md:left-0 md:right-0 md:p-8">
         <CategoryPill category={post.category} />
         <h2
-          className="mt-2 text-xl md:text-3xl font-bold leading-tight text-white line-clamp-3"
+          className="mt-2 text-xl md:text-3xl font-bold leading-tight line-clamp-3 text-[var(--fg)] md:text-white"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {post.title}
         </h2>
-        <p className="mt-2 text-sm text-white/60">
+        <p className="mt-2 text-sm text-[var(--fg-3)] md:text-white/60">
           {formatDate(post.published_at!)}
         </p>
       </div>
@@ -296,13 +273,11 @@ function SidebarCard({ post, last, index }: { post: PostWithRelations; last: boo
       }}
     >
       {post.cover_image_url && (
-        <div className="relative w-full aspect-[3/2] lg:w-20 lg:h-20 lg:aspect-auto rounded-lg overflow-hidden shrink-0">
-          <Image
+        <div className="relative w-full aspect-video lg:w-20 lg:h-20 lg:aspect-auto rounded-lg overflow-hidden shrink-0">
+          <CoverImage
             src={post.cover_image_url}
             alt={post.cover_image_alt ?? post.title}
-            fill
             sizes="(max-width: 1024px) 50vw, 80px"
-            className="object-cover"
           />
         </div>
       )}

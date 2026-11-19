@@ -37,7 +37,19 @@ export type SlotPick = Record<Range, PublicPromoBanner | null>
 /** Most banners per side rail (more only appear on tall pages). */
 const RAIL_SLOTS_PER_SIDE = 3
 
-type Slot = { spot: PromoSpot; /** what "once per kind of spot" means for repeating banners */ kind: string }
+type Slot = {
+  spot: PromoSpot
+  /** what "once per kind of spot" means for repeating banners */
+  kind: string
+  /** screen tiers this slot is never shown on */
+  skip?: Tier[]
+}
+
+/** Side rails are narrow columns: only banners whose key visual is upright fit them. */
+function isTall(b: PublicPromoBanner) {
+  if (!b.image_width || !b.image_height) return true
+  return b.image_height >= b.image_width * 1.2
+}
 
 function planSlots(banners: PublicPromoBanner[], slots: Slot[]): SlotPick[] {
   const used: Record<Tier, Set<string>> = { phone: new Set(), tablet: new Set(), laptop: new Set(), wide: new Set() }
@@ -45,11 +57,13 @@ function planSlots(banners: PublicPromoBanner[], slots: Slot[]): SlotPick[] {
   const repeated: Record<Range, Set<string>> = { phone: new Set(), mid: new Set(), wide: new Set() }
 
   const pick = (slot: Slot, range: Range) => {
-    const tiers = RANGE_TIERS[range].filter((t) => SPOT_TIERS[slot.spot].includes(t))
+    const tiers = RANGE_TIERS[range].filter((t) => SPOT_TIERS[slot.spot].includes(t) && !slot.skip?.includes(t))
     if (tiers.length === 0) return null
     const device = RANGE_DEVICE[range]
     const fits = (b: PublicPromoBanner) =>
-      (b.placements ?? ALL_SPOTS).includes(slot.spot) && b.device !== (device === "mobile" ? "desktop" : "mobile")
+      (b.placements ?? ALL_SPOTS).includes(slot.spot) &&
+      b.device !== (device === "mobile" ? "desktop" : "mobile") &&
+      (slot.spot !== "rail" || isTall(b))
     const banner =
       banners.find((b) => fits(b) && tiers.every((t) => !used[t].has(b.id))) ??
       banners.find((b) => fits(b) && b.repeat_in_spots && !repeated[range].has(`${slot.kind}:${b.id}`)) ??
@@ -79,15 +93,30 @@ function railsFrom(picks: SlotPick[]) {
   return { left: side(0), right: side(1) }
 }
 
+/** Most ads side by side in one in-feed row: 1 on phones, 2 on tablets, 3 from 1280px. */
+export const ROW_SIZE = 3
+const ROW_SLOTS: Slot[] = [
+  { spot: "feed", kind: "feed" },
+  { spot: "feed", kind: "feed", skip: ["phone"] },
+  { spot: "feed", kind: "feed", skip: ["phone", "tablet"] },
+]
+
+/** An in-feed row of ads: one pick per position (see ROW_SIZE). */
+export type RowPick = SlotPick[]
+
 /**
  * Homepage and category pages. Order of value on wide screens: the top of each side rail, then
- * the feed slots in page order, then the extra banners stacked lower down the rails.
+ * the in-feed rows in page order (each row filled before the next, so ads gather in a few full
+ * rows rather than one lonely ad per stop), then the extra banners stacked lower down the rails.
  */
-export function planListingPage(banners: PublicPromoBanner[], feedSlots = 12) {
+export function planListingPage(banners: PublicPromoBanner[], feedRows = 8) {
   const railTops = RAIL_SLOTS.slice(0, 2)
   const railStack = RAIL_SLOTS.slice(2)
-  const picks = planSlots(banners, [...railTops, ...many(feedSlots, "feed"), ...railStack])
-  const feed = picks.slice(2, 2 + feedSlots)
+  const feedSlots = feedRows * ROW_SIZE
+  const rowSlots = Array.from({ length: feedRows }, () => ROW_SLOTS).flat()
+  const picks = planSlots(banners, [...railTops, ...rowSlots, ...railStack])
+  const flat = picks.slice(2, 2 + feedSlots)
+  const feed: RowPick[] = Array.from({ length: feedRows }, (_, r) => flat.slice(r * ROW_SIZE, (r + 1) * ROW_SIZE))
   const rails = railsFrom([...picks.slice(0, 2), ...picks.slice(2 + feedSlots)])
   return { ...rails, feed }
 }
