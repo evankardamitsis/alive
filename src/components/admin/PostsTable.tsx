@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState, useMemo, useCallback, useRef } from "react"
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, Star, Home, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { DeletePostButton } from "@/components/admin/DeletePostButton"
+import { DuplicatePostButton } from "@/components/admin/DuplicatePostButton"
 import { formatDate } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -302,6 +303,7 @@ export function PostsTable({ posts: initialPosts, page, totalPages, total, featu
                         onClick={() => toggleField(post, "is_hero")}
                         busy={busy === `${post.id}-is_hero`}
                       />
+                      <DuplicatePostButton id={post.id} />
                       <DeletePostButton id={post.id} />
                     </div>
                   </td>

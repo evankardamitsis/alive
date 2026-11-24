@@ -15,6 +15,7 @@ import {
 import NextLink from "next/link"
 import { MediaPickerModal } from "@/components/admin/MediaPickerModal"
 import { EditorLinkDialog } from "@/components/admin/EditorLinkDialog"
+import { DuplicatePostButton } from "@/components/admin/DuplicatePostButton"
 import { toSlug } from "@/lib/slugify"
 import {
   formatDateTime,
@@ -375,6 +376,7 @@ export function PostEditor({ categories, authors, initial, currentHeroId }: Prop
               Preview
             </NextLink>
           )}
+          {!isNew && initial?.id && <DuplicatePostButton id={initial.id} variant="button" />}
           <button
             type="button"
             onClick={() => submitPost("save")}
