@@ -129,7 +129,13 @@ export function PostEditor({ categories, authors, initial, currentHeroId }: Prop
   )
   const [readTime, setReadTime] = useState(initial?.read_time ?? 3)
   const [busy, setBusy] = useState<SaveAction | null>(null)
-  const [slugManual, setSlugManual] = useState(!!initial?.slug)
+  // A never-published draft whose slug still matches its title (e.g. a fresh
+  // duplicate) keeps the slug in sync with the title. Published posts keep
+  // their slug fixed so live URLs don't change.
+  const [slugManual, setSlugManual] = useState(
+    !!initial?.slug &&
+      !(initial.status === "draft" && !initial.published_at && initial.slug === toSlug(initial.title ?? ""))
+  )
   const [mediaPicker, setMediaPicker] = useState(false)
   const [editorImagePicker, setEditorImagePicker] = useState(false)
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)

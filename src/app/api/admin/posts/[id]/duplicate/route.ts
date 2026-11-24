@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireAdminUser } from "@/lib/supabase/api-auth"
+import { toSlug } from "@/lib/slugify"
 
 // Columns that must not be copied: identity, generated columns, publishing
 // state and homepage/category placement flags.
@@ -19,17 +20,23 @@ const OMIT = new Set([
   "updated_at",
 ])
 
-async function uniqueSlug(
+// Builds "<title> (copy)" / "<title> (copy 2)" and a slug generated from that
+// new title, picking the first number whose slug is free.
+async function copyTitleAndSlug(
   supabase: ReturnType<typeof createAdminClient>,
-  base: string
+  title: string,
+  fallbackSlug: string
 ) {
-  const root = `${base}-copy`
-  const { data } = await supabase.from("posts").select("slug").like("slug", `${root}%`)
+  const base = toSlug(title) || fallbackSlug
+  const { data } = await supabase.from("posts").select("slug").like("slug", `${base}-copy%`)
   const taken = new Set((data ?? []).map((p) => p.slug))
-  if (!taken.has(root)) return root
-  let n = 2
-  while (taken.has(`${root}-${n}`)) n++
-  return `${root}-${n}`
+  let n = 1
+  const slugFor = (i: number) => (i === 1 ? `${base}-copy` : `${base}-copy-${i}`)
+  while (taken.has(slugFor(n))) n++
+  return {
+    title: n === 1 ? `${title} (copy)` : `${title} (copy ${n})`,
+    slug: slugFor(n),
+  }
 }
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -53,13 +60,14 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     if (!OMIT.has(key)) copy[key] = value
   }
 
+  const { title, slug } = await copyTitleAndSlug(supabase, source.title, source.slug)
   const now = new Date().toISOString()
   const { data: created, error: insertError } = await supabase
     .from("posts")
     .insert({
       ...copy,
-      title: `${source.title} (copy)`,
-      slug: await uniqueSlug(supabase, source.slug),
+      title,
+      slug,
       status: "draft",
       featured: false,
       is_hero: false,
