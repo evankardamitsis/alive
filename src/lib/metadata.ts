@@ -3,6 +3,9 @@ import { absoluteUrl } from "@/lib/utils"
 
 export const SITE_NAME = "Alive Magazine"
 export const SITE_TAGLINE = "Keep the curiosity ALIVE"
+/** Tag pages with fewer live posts are noindexed and left out of the sitemap. */
+export const MIN_POSTS_TO_INDEX_TAG = 3
+
 export const DEFAULT_DESCRIPTION =
   "Το πρώτο community-first μουσικό blog στην Ελλάδα. Κριτικές, συνεντεύξεις, liveshows και πολιτισμός."
 

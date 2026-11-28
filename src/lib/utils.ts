@@ -41,6 +41,23 @@ export function cleanExcerpt(text: string | null | undefined): string {
     .trim()
 }
 
+/** Excerpts shorter than this make weak search snippets; seoDescription pads them with the article text. */
+export const MIN_SEO_DESCRIPTION_LENGTH = 70
+
+/**
+ * Meta description for search results: the excerpt, or the excerpt followed by the opening of
+ * the article when the excerpt alone is too short (e.g. "Ilion Plus στις 5 Δεκεμβρίου").
+ */
+export function seoDescription(excerpt: string | null | undefined, content: string, maxLength = 160): string {
+  const lead = articleDescription(excerpt, "", Number.MAX_SAFE_INTEGER)
+  if (lead.length >= MIN_SEO_DESCRIPTION_LENGTH) return articleDescription(lead, "", maxLength)
+  const body = articleDescription(null, content, Number.MAX_SAFE_INTEGER)
+  // Skip the excerpt when it is just the article's first words (WordPress auto-excerpts).
+  if (!lead || body.toLowerCase().startsWith(lead.toLowerCase())) return articleDescription(null, body, maxLength)
+  const separator = /[.!;·…]$/.test(lead) ? " " : ". "
+  return articleDescription(null, `${lead}${separator}${body}`, maxLength)
+}
+
 export function articleDescription(excerpt: string | null | undefined, content: string, maxLength = 160): string {
   const source = cleanExcerpt(excerpt) || content
   const plainText = decode(source.replace(/<[^>]+>/g, " "))

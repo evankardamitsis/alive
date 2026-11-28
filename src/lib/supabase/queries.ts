@@ -129,6 +129,51 @@ async function fetchPostBySlug(slug: string) {
   return withRelations([data as PostRow])[0] ?? null
 }
 
+/** Canonical path of a live post imported from WordPress, by its old post ID. */
+export async function getPostPathByWpId(wpId: number): Promise<string | null> {
+  return unstable_cache(
+    async () => {
+      const supabase = createPublicClient()
+      const { data } = await applyLiveFilters(
+        supabase.from("posts").select("slug, category:categories(slug)").eq("wp_id", wpId).eq("status", "published")
+      ).maybeSingle()
+      const row = data as { slug: string; category: { slug: string } | { slug: string }[] | null } | null
+      const category = Array.isArray(row?.category) ? row.category[0] : row?.category
+      return row?.slug && category?.slug ? `/${category.slug}/${row.slug}` : null
+    },
+    ["getPostPathByWpId", String(wpId)],
+    { tags: [POSTS_CACHE_TAG], revalidate: 300 }
+  )()
+}
+
+/** Number of live posts, optionally in one category. */
+export async function countPublishedPosts(options?: { categorySlug?: string }): Promise<number> {
+  return unstable_cache(
+    async () => {
+      const supabase = createPublicClient()
+      let categoryId: string | undefined
+      if (options?.categorySlug) {
+        const { data: category } = await supabase
+          .from("categories")
+          .select("id")
+          .eq("slug", options.categorySlug)
+          .maybeSingle()
+        if (!category?.id) return 0
+        categoryId = category.id
+      }
+      let query = applyLiveFilters(
+        supabase.from("posts").select("id", { count: "exact", head: true }).eq("status", "published")
+      )
+      if (categoryId) query = query.eq("category_id", categoryId)
+      const { count, error } = await query
+      if (error) throw error
+      return count ?? 0
+    },
+    ["countPublishedPosts", options?.categorySlug ?? ""],
+    { tags: [POSTS_CACHE_TAG], revalidate: 60 }
+  )()
+}
+
 export async function getPostBySlug(slug: string) {
   return unstable_cache(() => fetchPostBySlug(slug), ["getPostBySlug", slug], {
     tags: [POSTS_CACHE_TAG],
@@ -237,12 +282,40 @@ async function fetchPostsByTag(tagSlug: string, limit = 24) {
   const supabase = createPublicClient()
   const tag = await getTagBySlug(tagSlug)
   if (!tag) return []
-  const { data, error } = await applyLiveFilters(supabase.from("posts").select(POST_SELECT).eq("status", "published"))
+  // Filter on the join in the database: fetching the newest posts and filtering here
+  // missed every tagged post older than the newest `limit`.
+  const { data, error } = await applyLiveFilters(
+    supabase
+      .from("posts")
+      .select(`${POST_SELECT}, tag_filter:post_tags!inner(tag_id)`)
+      .eq("status", "published")
+      .eq("tag_filter.tag_id", tag.id)
+  )
     .order("published_at", { ascending: false })
     .limit(limit)
   if (error) throw error
-  const posts = withRelations(data as PostRow[])
-  return posts.filter((post) => post.tags.some((tag) => tag.slug === tagSlug))
+  return withRelations(data as PostRow[])
+}
+
+/** Live posts per tag id. Tags missing from the map have none. */
+export async function getTagPostCounts(): Promise<Record<string, number>> {
+  return unstable_cache(
+    async () => {
+      const supabase = createPublicClient()
+      const { data, error } = await supabase
+        .from("post_tags")
+        .select("tag_id, post:posts!inner(id)")
+        .eq("post.status", "published")
+        .not("post.published_at", "is", null)
+        .lte("post.published_at", liveNow())
+      if (error) throw error
+      const counts: Record<string, number> = {}
+      for (const row of data ?? []) counts[row.tag_id] = (counts[row.tag_id] ?? 0) + 1
+      return counts
+    },
+    ["getTagPostCounts"],
+    { tags: [POSTS_CACHE_TAG], revalidate: 300 }
+  )()
 }
 
 export async function getPostsByTag(tagSlug: string, limit = 24) {

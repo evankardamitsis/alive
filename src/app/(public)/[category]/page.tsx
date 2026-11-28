@@ -1,7 +1,14 @@
 import { Fragment } from "react"
-import { notFound } from "next/navigation"
+import Link from "next/link"
+import { notFound, permanentRedirect } from "next/navigation"
 import type { Metadata } from "next"
-import { getPublishedPosts, getAllCategories, getCategoryFeaturedPost } from "@/lib/supabase/queries"
+import {
+  getPublishedPosts,
+  getAllCategories,
+  getCategoryFeaturedPost,
+  getPostBySlug,
+  countPublishedPosts,
+} from "@/lib/supabase/queries"
 import { ArticleCard } from "@/components/article/ArticleCard"
 import { pageMetadata } from "@/lib/metadata"
 import { JsonLd } from "@/components/JsonLd"
@@ -12,11 +19,32 @@ import { planListingPage } from "@/lib/promo-plan"
 
 /** In-feed promo after every N grid cards (divisible by 1–4 columns so rows stay full). */
 const PROMO_EVERY = 12
+/** Page 1 shows the newest FIRST_PAGE_SIZE (plus a pinned featured post); later pages PAGE_SIZE each. */
+const FIRST_PAGE_SIZE = 25
+const PAGE_SIZE = 24
 
 export const revalidate = 60
 
 interface Props {
   params: Promise<{ category: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+/** Page number from ?page=, or null when the value is not a whole number ≥ 1. */
+function parsePage(value: string | string[] | undefined): number | null {
+  if (value === undefined) return 1
+  const raw = Array.isArray(value) ? value[0] : value
+  if (!/^\d+$/.test(raw)) return null
+  const page = Number(raw)
+  return page >= 1 ? page : null
+}
+
+function pageCount(total: number) {
+  return 1 + Math.ceil(Math.max(0, total - FIRST_PAGE_SIZE) / PAGE_SIZE)
+}
+
+function pageHref(categorySlug: string, page: number) {
+  return page <= 1 ? `/${categorySlug}` : `/${categorySlug}?page=${page}`
 }
 
 export async function generateStaticParams() {
@@ -24,15 +52,17 @@ export async function generateStaticParams() {
   return categories.map((c) => ({ category: c.slug }))
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { category } = await params
   const categories = await getAllCategories()
   const cat = categories.find((c) => c.slug === category)
   if (!cat) return {}
+  const page = parsePage((await searchParams).page) ?? 1
+  const suffix = page > 1 ? ` — Σελίδα ${page}` : ""
   return pageMetadata({
-    title: cat.name,
-    description: cat.description ?? `Όλα τα άρθρα στην ενότητα ${cat.name} — Alive Magazine`,
-    path: `/${cat.slug}`,
+    title: `${cat.name}${suffix}`,
+    description: `${cat.description ?? `Όλα τα άρθρα στην ενότητα ${cat.name} — Alive Magazine`}${suffix}`,
+    path: pageHref(cat.slug, page),
     og: {
       title: cat.name,
       description: cat.description ?? undefined,
@@ -41,23 +71,39 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   })
 }
 
-export default async function CategoryPage({ params }: Props) {
+export default async function CategoryPage({ params, searchParams }: Props) {
   const { category } = await params
   const categories = await getAllCategories()
   const cat = categories.find((c) => c.slug === category)
-  if (!cat) notFound()
+  if (!cat) {
+    // Old WordPress permalinks were /<post-slug>/ — send them to the post's new address.
+    const post = await getPostBySlug(decodeURIComponent(category))
+    if (post) permanentRedirect(encodeURI(`/${post.category.slug}/${post.slug}`))
+    notFound()
+  }
 
-  const [featuredPost, recent, liveBanners] = await Promise.all([
-    getCategoryFeaturedPost(category),
-    getPublishedPosts({ categorySlug: category, limit: 26 }),
+  const page = parsePage((await searchParams).page)
+  if (page === null) notFound()
+  if (page === 1 && (await searchParams).page !== undefined) permanentRedirect(`/${cat.slug}`)
+
+  const [featuredPost, recent, total, liveBanners] = await Promise.all([
+    page === 1 ? getCategoryFeaturedPost(category) : Promise.resolve(null),
+    getPublishedPosts({
+      categorySlug: category,
+      limit: page === 1 ? FIRST_PAGE_SIZE : PAGE_SIZE,
+      offset: page === 1 ? 0 : FIRST_PAGE_SIZE + (page - 2) * PAGE_SIZE,
+    }),
+    countPublishedPosts({ categorySlug: category }),
     getLivePromoBanners(),
   ])
+  const totalPages = pageCount(total)
+  if (page > totalPages) notFound()
   const promos = planListingPage(inlineBannersFor(liveBanners, { type: "category", categoryId: cat.id }))
 
-  const featured = featuredPost ?? recent[0] ?? null
+  const featured = page === 1 ? (featuredPost ?? recent[0] ?? null) : null
   const rest = recent.filter((p) => p.id !== featured?.id)
   const posts = featured ? [featured, ...rest] : rest
-  const pageUrl = siteUrl(`/${cat.slug}`)
+  const pageUrl = siteUrl(pageHref(cat.slug, page))
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -117,7 +163,8 @@ export default async function CategoryPage({ params }: Props) {
             </p>
           )}
           <p className="mt-4 text-xs font-medium uppercase tracking-widest" style={{ color: "var(--fg-3)" }}>
-            {posts.length} {posts.length === 1 ? "article" : "articles"}
+            {total} {total === 1 ? "article" : "articles"}
+            {page > 1 && ` · Σελίδα ${page} από ${totalPages}`}
           </p>
         </div>
       </div>
@@ -153,7 +200,43 @@ export default async function CategoryPage({ params }: Props) {
             )}
           </>
         )}
+
+        {totalPages > 1 && <Pagination categorySlug={cat.slug} page={page} totalPages={totalPages} />}
       </div>
     </PromoRails>
+  )
+}
+
+function Pagination({ categorySlug, page, totalPages }: { categorySlug: string; page: number; totalPages: number }) {
+  const linkStyle = { border: "1px solid var(--border)", color: "var(--fg)" }
+  return (
+    <nav aria-label="Σελίδες" className="mt-16 flex flex-wrap items-center justify-center gap-2 text-sm font-medium">
+      {page > 1 && (
+        <Link href={pageHref(categorySlug, page - 1)} rel="prev" className="rounded-full px-4 py-2" style={linkStyle}>
+          ← Νεότερα
+        </Link>
+      )}
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) =>
+        n === page ? (
+          <span
+            key={n}
+            aria-current="page"
+            className="rounded-full px-4 py-2"
+            style={{ backgroundColor: "var(--fg)", color: "var(--bg)" }}
+          >
+            {n}
+          </span>
+        ) : (
+          <Link key={n} href={pageHref(categorySlug, n)} className="rounded-full px-4 py-2" style={linkStyle}>
+            {n}
+          </Link>
+        )
+      )}
+      {page < totalPages && (
+        <Link href={pageHref(categorySlug, page + 1)} rel="next" className="rounded-full px-4 py-2" style={linkStyle}>
+          Παλαιότερα →
+        </Link>
+      )}
+    </nav>
   )
 }

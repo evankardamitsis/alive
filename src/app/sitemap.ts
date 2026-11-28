@@ -1,14 +1,22 @@
 import type { MetadataRoute } from "next"
-import { getAllCategories, getAllTags, getAllPublishedSlugs, getPublicAuthors } from "@/lib/supabase/queries"
+import {
+  getAllCategories,
+  getAllTags,
+  getAllPublishedSlugs,
+  getPublicAuthors,
+  getTagPostCounts,
+} from "@/lib/supabase/queries"
+import { MIN_POSTS_TO_INDEX_TAG } from "@/lib/metadata"
 import { getSiteUrl, siteUrl } from "@/lib/site"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getSiteUrl()
-  const [slugs, categories, tags, authors] = await Promise.all([
+  const [slugs, categories, tags, authors, tagCounts] = await Promise.all([
     getAllPublishedSlugs(),
     getAllCategories(),
     getAllTags(),
     getPublicAuthors(),
+    getTagPostCounts(),
   ])
 
   const posts: MetadataRoute.Sitemap = slugs.map((p) => ({
@@ -25,11 +33,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }))
 
-  const tagPages: MetadataRoute.Sitemap = tags.map((t) => ({
-    url: siteUrl(`/tag/${t.slug}`),
-    changeFrequency: "weekly",
-    priority: 0.5,
-  }))
+  // Only tags whose pages are indexable (see the tag page's metadata).
+  const tagPages: MetadataRoute.Sitemap = tags
+    .filter((t) => (tagCounts[t.id] ?? 0) >= MIN_POSTS_TO_INDEX_TAG)
+    .map((t) => ({
+      url: siteUrl(`/tag/${t.slug}`),
+      changeFrequency: "weekly",
+      priority: 0.5,
+    }))
 
   const authorPages: MetadataRoute.Sitemap = authors.map((a) => ({
     url: siteUrl(`/author/${a.slug}`),

@@ -70,6 +70,19 @@ const nextConfig: NextConfig = {
         destination: "/reset-password",
         permanent: false,
       },
+      // ── Old WordPress URLs (the site moved off WordPress in June 2026) ──
+      // /?p=123 → the imported post with that wp_id (looked up in app/wp/[id]).
+      {
+        source: "/",
+        has: [{ type: "query", key: "p", value: "(?<wpId>\\d+)" }],
+        destination: "/wp/:wpId",
+        permanent: true,
+      },
+      // Date permalinks → bare slug, which app/(public)/[category] sends on to the post.
+      { source: "/:y(\\d{4})/:m(\\d{2})/:d(\\d{2})/:slug", destination: "/:slug", permanent: true },
+      { source: "/:y(\\d{4})/:m(\\d{2})/:slug", destination: "/:slug", permanent: true },
+      { source: "/category/:slug", destination: "/:slug", permanent: true },
+      { source: "/feed", destination: "/feed.xml", permanent: true },
     ]
   },
 }

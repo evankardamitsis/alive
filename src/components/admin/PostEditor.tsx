@@ -451,6 +451,7 @@ export function PostEditor({ categories, authors, initial, currentHeroId }: Prop
             className="w-full bg-transparent outline-none resize-none text-sm"
             style={{ color: "var(--fg-2)" }}
           />
+          <ExcerptLengthHint length={excerpt.trim().length} />
 
           {/* Divider */}
           <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -769,5 +770,22 @@ export function PostEditor({ categories, authors, initial, currentHeroId }: Prop
       </div>
     </form>
     </>
+  )
+}
+
+/** Google shows roughly 120–155 characters of a description in results. */
+function ExcerptLengthHint({ length }: { length: number }) {
+  const status =
+    length === 0
+      ? { text: "No excerpt — search results will show the article's opening lines.", color: "var(--fg-3)" }
+      : length < 120
+        ? { text: "Short for search results — aim for 120–155 characters (artist, venue, date).", color: "#d97706" }
+        : length <= 155
+          ? { text: "Good length for search results.", color: "#16a34a" }
+          : { text: "Search results will cut this off after about 155 characters.", color: "#d97706" }
+  return (
+    <p className="-mt-2 text-[11px]" style={{ color: status.color }}>
+      {length}/155 · {status.text}
+    </p>
   )
 }

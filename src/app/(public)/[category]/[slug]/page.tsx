@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { getPostBySlug, getRelatedPosts, getAdjacentPosts, getAllPublishedSlugs } from "@/lib/supabase/queries"
-import { articleDescription, formatDate, estimateReadTime, wordCount } from "@/lib/utils"
+import { articleDescription, seoDescription, formatDate, estimateReadTime, wordCount } from "@/lib/utils"
 import { normalizeArticleImages, splitArticleForPromos } from "@/lib/article-content"
 import { pageMetadata, SITE_NAME } from "@/lib/metadata"
 import { getSiteUrl, siteUrl } from "@/lib/site"
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = await getPostBySlug(slug)
   if (!post) return {}
 
-  const description = articleDescription(post.excerpt, post.content) || undefined
+  const description = seoDescription(post.excerpt, post.content) || undefined
 
   return pageMetadata({
     title: post.title,
@@ -71,7 +71,7 @@ export default async function ArticlePage({ params }: Props) {
   const post = await getPostBySlug(slug)
   if (!post) notFound()
   if (category !== post.category.slug || slug !== post.slug) {
-    permanentRedirect(`/${post.category.slug}/${post.slug}`)
+    permanentRedirect(encodeURI(`/${post.category.slug}/${post.slug}`))
   }
 
   const [related, adjacent, liveBanners] = await Promise.all([
@@ -270,6 +270,28 @@ export default async function ArticlePage({ params }: Props) {
                 <div className="article-content" dangerouslySetInnerHTML={{ __html: html }} />
               </Fragment>
             ))}
+
+            {/* Read-also links: crawlable links to related articles, right after the text. */}
+            {related.length > 0 && (
+              <section className="mt-12 rounded-2xl p-5 md:p-6" style={{ backgroundColor: "var(--bg-2)" }}>
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-4" style={{ color: "var(--fg-3)" }}>
+                  Διάβασε επίσης
+                </h2>
+                <ul className="space-y-3">
+                  {related.slice(0, 3).map((p) => (
+                    <li key={p.id}>
+                      <Link
+                        href={`/${p.category.slug}/${p.slug}`}
+                        className="font-semibold leading-snug underline-offset-4 hover:underline"
+                        style={{ color: "var(--fg)", fontFamily: "var(--font-display)" }}
+                      >
+                        {p.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             <PromoInFeed pick={promoPlan.afterArticle} className="mt-12" />
 

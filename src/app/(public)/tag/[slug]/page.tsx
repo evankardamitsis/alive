@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { getTagBySlug, getPostsByTag, getAllTags } from "@/lib/supabase/queries"
 import { ArticleCard } from "@/components/article/ArticleCard"
-import { pageMetadata } from "@/lib/metadata"
+import { pageMetadata, MIN_POSTS_TO_INDEX_TAG } from "@/lib/metadata"
 import { JsonLd } from "@/components/JsonLd"
 import { getSiteUrl, siteUrl } from "@/lib/site"
 
@@ -19,7 +19,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const tag = await getTagBySlug(slug)
+  const [tag, posts] = await Promise.all([getTagBySlug(slug), getPostsByTag(slug)])
   if (!tag) return {}
   const title = `#${tag.name}`
   const description = `Όλα τα άρθρα με την ετικέτα #${tag.name} — Alive Magazine`
@@ -27,6 +27,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     path: `/tag/${tag.slug}`,
+    // A tag with only one or two posts is a thin page; keep it out of search results.
+    index: posts.length >= MIN_POSTS_TO_INDEX_TAG,
     og: { title, description, color: "#e63946" },
   })
 }
